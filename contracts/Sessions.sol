@@ -17,6 +17,7 @@ interface IMainNFT {
 contract Sessions is ReentrancyGuard {
     using SafeMath for uint256;
 
+    address verifierProvider;
     IMainNFT mainNFT;
 
     enum Types {
@@ -50,6 +51,7 @@ contract Sessions is ReentrancyGuard {
     mapping(uint256 => mapping(address => bool)) public blackListByAuthor;
     mapping(uint256 => Session[]) public sessionByAuthor;
     mapping(uint256 => mapping(uint256 => mapping(address => bool))) public participantVoted;
+    mapping(uint256 => mapping(uint256 => mapping(address => string))) public invitationToTg;
     mapping(address => uint256) internal blockedForWithdraw;
 
     event Received(address indexed sender, uint256 value);
@@ -67,6 +69,11 @@ contract Sessions is ReentrancyGuard {
 
     modifier onlyAuthor(uint256 author) {
         require(mainNFT.onlyAuthor(msg.sender, author), "Only for Author");
+        _;
+    }
+
+    modifier onlyVerifierProvider(){
+        require(verifierProvider == msg.sender, "Only verifier provider");
         _;
     }
 
@@ -89,8 +96,9 @@ contract Sessions is ReentrancyGuard {
         _;
     }
 
-    constructor(address mainNFTAddress) {
-        mainNFT = IMainNFT(mainNFTAddress);
+    constructor(address _mainNFTAddress, address _verifierProvider) {
+        mainNFT = IMainNFT(_mainNFTAddress);
+        setVerifierProvider(_verifierProvider);
     }
 
     /***************Author options BGN***************/
@@ -211,13 +219,18 @@ contract Sessions is ReentrancyGuard {
         }
         blockedForWithdraw[tokenAddress] -= tokenAmount;
     }
+
+    function getAllSessionsByAuthor(uint256 author) public view returns (Session[] memory){
+        return sessionByAuthor[author];
+    }
+
     /***************Author options END***************/
 
     /***************User interfaces BGN***************/
     function paymentEth(uint256 author, uint256 value) internal nonReentrant {
         uint256 contractFee = mainNFT.contractFeeForAuthor(author, value);
         uint256 amount = value - contractFee;
-        (bool success1, ) = owner().call{value: contractFee}("");
+        (bool success1, ) = address(mainNFT).call{value: contractFee}("");
         (bool success2, ) = ownerOf(author).call{value: amount}("");
         require(success1 && success2, "fail");
         mainNFT.addAuthorsRating(address(0), value, author);
@@ -226,7 +239,7 @@ contract Sessions is ReentrancyGuard {
     function paymentToken(address sender, address tokenAddress, uint256 tokenAmount, uint256 author) internal nonReentrant {
         IERC20 token = IERC20(tokenAddress);
         uint256 contractFee = mainNFT.contractFeeForAuthor(author, tokenAmount);
-        token.transferFrom(sender, owner(), contractFee);
+        token.transferFrom(sender, address(mainNFT), contractFee);
         uint256 amount = tokenAmount - contractFee;
         token.transferFrom(sender, ownerOf(author), amount);
         mainNFT.addAuthorsRating(tokenAddress, tokenAmount, author);
@@ -264,7 +277,6 @@ contract Sessions is ReentrancyGuard {
         }
     }
 
-    // Отмена участия пользователя в сессии в случае, когда его заявке ещё не подтверждена для модерируемых сессий
     function cancelByParticipant(uint256 author, uint256 sessionId) public returns(bool) {
         Session storage session = sessionByAuthor[author][sessionId];
         Participants storage participants = session.participants;
@@ -283,7 +295,6 @@ contract Sessions is ReentrancyGuard {
         return false;
     }
 
-    // Голосование пользователей за прошедшую сессию, доступно только участниками один раз
     function voteForSession(bool like, uint256 author, uint256 sessionId) public {
         Session storage session = sessionByAuthor[author][sessionId];
         require(session.expirationTime < block.timestamp, "Session not closed");
@@ -302,6 +313,10 @@ contract Sessions is ReentrancyGuard {
     /***************User interfaces END***************/
 
     /***************Support BGN***************/
+    function setInvitationToTg(uint256 author, uint256 sessionId, address participant, string memory invitation) public onlyVerifierProvider{
+        invitationToTg[author][sessionId][participant] = invitation;
+    }
+
     function owner() public view returns(address){
         return mainNFT.commissionCollector();
     }
@@ -314,9 +329,13 @@ contract Sessions is ReentrancyGuard {
         mainNFT = IMainNFT(mainNFTAddress);
     }
 
+    function setVerifierProvider(address _verifierProvider) public onlyOwner{
+        verifierProvider = _verifierProvider;
+    }
+
     function withdraw() external onlyOwner nonReentrant {
         uint256 amount = address(this).balance;
-        (bool success, ) = owner().call{value: amount}("");
+        (bool success, ) = address(mainNFT).call{value: amount}("");
         require(success, "fail");
     }
 
@@ -324,11 +343,13 @@ contract Sessions is ReentrancyGuard {
         IERC20 token = IERC20(_address);
         uint256 tokenBalance = token.balanceOf(address(this));
         uint256 amount = tokenBalance;
-        token.transfer(owner(), amount);
+        token.transfer(address(mainNFT), amount);
     }
     /***************Support END**************/
 
     receive() external payable {
+        (bool success, ) = address(mainNFT).call{value: msg.value}("");
+        require(success, "fail");
         emit Received(msg.sender, msg.value);
     }
 }
