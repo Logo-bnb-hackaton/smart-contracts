@@ -7,7 +7,7 @@ import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 
 interface IMainNFT {
     function ownerOf(uint256) external view returns (address);
-    function onlyAuthor(uint256) external pure returns (bool);
+    function onlyAuthor(address, uint256) external pure returns (bool);
     function isAddressExist(address, address[] memory) external pure returns (bool);
     function contractFeeForAuthor(uint256, uint256) external view returns(uint256);
     function commissionCollector() external view returns (address);
@@ -23,6 +23,11 @@ contract PublicDonation is  ReentrancyGuard {
 
     event Received(address indexed sender, uint256 value);
     event Donate(address indexed sender, address indexed token, uint256 value, uint256 indexed author);
+
+    modifier onlyAuthor(uint256 author) {
+        require(mainNFT.onlyAuthor(msg.sender, author), "Only for Author");
+        _;
+    }
 
     modifier supportsERC20(address _address){
         require(
@@ -42,15 +47,13 @@ contract PublicDonation is  ReentrancyGuard {
     }
 
     /***************Author options BGN***************/
-    function addDonateAddress(address tokenAddress, uint256 author) supportsERC20(tokenAddress) public {
-        require(mainNFT.onlyAuthor(author), "Only Author");
+    function addDonateAddress(address tokenAddress, uint256 author) supportsERC20(tokenAddress) onlyAuthor(author) public {
         address[] storage tokens = donateTokenAddressesByAuthor[author];
         require(!mainNFT.isAddressExist(tokenAddress, tokens), "Already exists");
         tokens.push(tokenAddress);
     }
 
-    function removeDonateAddress(address tokenAddress, uint256 author) supportsERC20(tokenAddress) public {
-        require(mainNFT.onlyAuthor(author), "Only Author");
+    function removeDonateAddress(address tokenAddress, uint256 author) supportsERC20(tokenAddress) onlyAuthor(author) public {
         address[] storage tokens = donateTokenAddressesByAuthor[author];
         require(mainNFT.isAddressExist(tokenAddress, tokens), "Not exist");
         for (uint i = 0; i < tokens.length; i++) {
@@ -85,7 +88,7 @@ contract PublicDonation is  ReentrancyGuard {
         mainNFT.addAuthorsRating(tokenAddress, tokenAmount, author);
     }
 
-    function donateEth(uint256 author) public nonReentrant payable{        
+    function donateEth(uint256 author) public payable{        
         require(msg.value >= 10**6, "Low value");
         paymentEth(author, msg.value);
         emit Donate(msg.sender, address(0), msg.value, author);

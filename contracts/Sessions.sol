@@ -7,7 +7,7 @@ import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 
 interface IMainNFT {
     function ownerOf(uint256) external view returns (address);
-    function onlyAuthor(uint256) external pure returns (bool);
+    function onlyAuthor(address, uint256) external pure returns (bool);
     function isAddressExist(address, address[] memory) external pure returns (bool);
     function contractFeeForAuthor(uint256, uint256) external view returns(uint256);
     function commissionCollector() external view returns (address);
@@ -65,6 +65,11 @@ contract Sessions is ReentrancyGuard {
         _;
     }
 
+    modifier onlyAuthor(uint256 author) {
+        require(mainNFT.onlyAuthor(msg.sender, author), "Only for Author");
+        _;
+    }
+
     modifier supportsERC20(address _address){
         require(
             _address == address(0) || IERC20(_address).totalSupply() > 0 && IERC20(_address).allowance(_address, _address) >= 0,
@@ -95,8 +100,7 @@ contract Sessions is ReentrancyGuard {
         uint256 expirationTime, 
         uint256 maxParticipants, 
         Types typeOf, 
-        string memory name) public{
-            require(mainNFT.onlyAuthor(author), "Only Author");
+        string memory name) public onlyAuthor(author){
             require(price >= 10**6, "Low price");
             createNewSessionByToken(author, address(0), price, expirationTime, maxParticipants, typeOf, name);
         }
@@ -108,8 +112,7 @@ contract Sessions is ReentrancyGuard {
         uint256 expirationTime, 
         uint256 maxParticipants, 
         Types typeOf, 
-        string memory name) supportsERC20(tokenAddress) public{
-            require(mainNFT.onlyAuthor(author), "Only Author");
+        string memory name) supportsERC20(tokenAddress) public onlyAuthor(author){
             require(price > 0, "Low price");
             Rating memory rating = Rating(0, 0);  
             Participants memory participants = Participants(
@@ -131,30 +134,25 @@ contract Sessions is ReentrancyGuard {
             emit NewSessionCreated(author, name, tokenAddress, price, expirationTime, maxParticipants, typeOf);
     }
 
-    function addToWhiteList(address user, uint256 author) public {
-        require(mainNFT.onlyAuthor(author), "Only Author");
+    function addToWhiteList(address user, uint256 author) public onlyAuthor(author){
         blackListByAuthor[author][user] = false;
         whiteListByAuthor[author][user] = true;
     }
 
-    function removeWhiteList(address user, uint256 author) public {
-        require(mainNFT.onlyAuthor(author), "Only Author");
+    function removeWhiteList(address user, uint256 author) public onlyAuthor(author){
         whiteListByAuthor[author][user] = false;
     }
 
-    function addToBlackList(address user, uint256 author) public {
-        require(mainNFT.onlyAuthor(author), "Only Author");
+    function addToBlackList(address user, uint256 author) public onlyAuthor(author){
         whiteListByAuthor[author][user] = false;
         blackListByAuthor[author][user] = true;
     }
 
-    function removeBlackList(address user, uint256 author) public {
-        require(mainNFT.onlyAuthor(author), "Only Author");
+    function removeBlackList(address user, uint256 author) public onlyAuthor(author){
         blackListByAuthor[author][user] = false;
     }
 
-    function confirmParticipants(address participant, uint256 author, uint256 sessionId) public returns(bool) {
-        require(mainNFT.onlyAuthor(author), "Only Author");
+    function confirmParticipants(address participant, uint256 author, uint256 sessionId) public onlyAuthor(author) returns(bool) {
         Session storage session = sessionByAuthor[author][sessionId];
         Participants storage participants = session.participants;
         require(mainNFT.isAddressExist(participant, participants.notConfirmed), "Is denied");
@@ -172,8 +170,7 @@ contract Sessions is ReentrancyGuard {
         return false;
     }
 
-    function unconfirmParticipants(address participant, uint256 author, uint256 sessionId) public returns(bool) {
-        require(mainNFT.onlyAuthor(author), "Only Author");
+    function unconfirmParticipants(address participant, uint256 author, uint256 sessionId) public onlyAuthor(author) returns(bool) {
         Session storage session = sessionByAuthor[author][sessionId];
         Participants storage participants = session.participants;
         require(mainNFT.isAddressExist(participant, participants.notConfirmed), "Is denied");

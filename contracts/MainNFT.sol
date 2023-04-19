@@ -39,10 +39,17 @@ contract MainNFT is ERC721Enumerable, IERC2981, Ownable, ReentrancyGuard {
         _;
     }
 
+    modifier isContract(address _addr) {
+        uint256 size;
+        assembly { size := extcodesize(_addr) }
+        require(size > 0, "address is not contract");
+        _;
+    }
+
     constructor(address _uniswapRouterAddress, uint8 _levelsCount, string memory _baseURI) ERC721("SocialFi by 0xc0de", "SoFi") {
-        uniswapRouter = IUniswapV2Router02(_uniswapRouterAddress);
         levels = _levelsCount;
         baseURI = _baseURI;
+        setNewRouter(_uniswapRouterAddress);
     }
 
     /***************Common interfaces BGN***************/
@@ -82,8 +89,8 @@ contract MainNFT is ERC721Enumerable, IERC2981, Ownable, ReentrancyGuard {
         return result;
     }
 
-    function onlyAuthor(uint256 author) public view returns (bool){
-        return ownerOf(author) == msg.sender || managers[author] == msg.sender;
+    function onlyAuthor(address sender, uint256 author) public view returns (bool){
+        return ownerOf(author) == sender || managers[author] == sender;
     }
 
     function isAddressExist(address _addressToCheck, address[] memory _collection) public pure returns (bool) {
@@ -99,10 +106,16 @@ contract MainNFT is ERC721Enumerable, IERC2981, Ownable, ReentrancyGuard {
         return owner();
     }
 
+    
+
     function converTokenPriceToEth(address tokenAddress, uint256 tokenAmount) public view returns (uint256) {
         address[] memory path = new address[](2);
         path[0] = tokenAddress;
-        path[1] = uniswapRouter.WETH();
+        try uniswapRouter.WETH() returns(address wethAddress) {
+            path[1] = wethAddress;
+        } catch (bytes memory) {
+            return 0;
+        }
         try uniswapRouter.getAmountsOut(tokenAmount, path) returns(uint256[] memory amountsOut){
             return amountsOut[1];
         } catch (bytes memory) {
@@ -144,7 +157,7 @@ contract MainNFT is ERC721Enumerable, IERC2981, Ownable, ReentrancyGuard {
         publicSaleTokenPrice = _newPrice;
     }
 
-    function setNewRouter(address _uniswapRouterAddress) external onlyOwner {
+    function setNewRouter(address _uniswapRouterAddress) public onlyOwner isContract(_uniswapRouterAddress) {
         uniswapRouter = IUniswapV2Router02(_uniswapRouterAddress);
     }
 
