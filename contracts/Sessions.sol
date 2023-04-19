@@ -12,6 +12,7 @@ interface IMainNFT {
     function contractFeeForAuthor(uint256, uint256) external view returns(uint256);
     function commissionCollector() external view returns (address);
     function addAuthorsRating(address, uint256, uint256) external;
+    function setVerfiedContracts(bool, address) external;
 }
 
 contract Sessions is ReentrancyGuard {
@@ -99,6 +100,7 @@ contract Sessions is ReentrancyGuard {
     constructor(address _mainNFTAddress, address _verifierProvider) {
         mainNFT = IMainNFT(_mainNFTAddress);
         setVerifierProvider(_verifierProvider);
+        mainNFT.setVerfiedContracts(true, address(this));
     }
 
     /***************Author options BGN***************/
@@ -230,7 +232,7 @@ contract Sessions is ReentrancyGuard {
     function paymentEth(uint256 author, uint256 value) internal nonReentrant {
         uint256 contractFee = mainNFT.contractFeeForAuthor(author, value);
         uint256 amount = value - contractFee;
-        (bool success1, ) = address(mainNFT).call{value: contractFee}("");
+        (bool success1, ) = owner().call{value: contractFee}("");
         (bool success2, ) = ownerOf(author).call{value: amount}("");
         require(success1 && success2, "fail");
         mainNFT.addAuthorsRating(address(0), value, author);
@@ -239,7 +241,7 @@ contract Sessions is ReentrancyGuard {
     function paymentToken(address sender, address tokenAddress, uint256 tokenAmount, uint256 author) internal nonReentrant {
         IERC20 token = IERC20(tokenAddress);
         uint256 contractFee = mainNFT.contractFeeForAuthor(author, tokenAmount);
-        token.transferFrom(sender, address(mainNFT), contractFee);
+        token.transferFrom(sender, owner(), contractFee);
         uint256 amount = tokenAmount - contractFee;
         token.transferFrom(sender, ownerOf(author), amount);
         mainNFT.addAuthorsRating(tokenAddress, tokenAmount, author);
@@ -335,7 +337,7 @@ contract Sessions is ReentrancyGuard {
 
     function withdraw() external onlyOwner nonReentrant {
         uint256 amount = address(this).balance;
-        (bool success, ) = address(mainNFT).call{value: amount}("");
+        (bool success, ) = owner().call{value: amount}("");
         require(success, "fail");
     }
 
@@ -343,12 +345,12 @@ contract Sessions is ReentrancyGuard {
         IERC20 token = IERC20(_address);
         uint256 tokenBalance = token.balanceOf(address(this));
         uint256 amount = tokenBalance;
-        token.transfer(address(mainNFT), amount);
+        token.transfer(owner(), amount);
     }
     /***************Support END**************/
 
     receive() external payable {
-        (bool success, ) = address(mainNFT).call{value: msg.value}("");
+        (bool success, ) = owner().call{value: msg.value}("");
         require(success, "fail");
         emit Received(msg.sender, msg.value);
     }

@@ -12,6 +12,7 @@ interface IMainNFT {
     function contractFeeForAuthor(uint256, uint256) external view returns(uint256);
     function commissionCollector() external view returns (address);
     function addAuthorsRating(address, uint256, uint256) external;
+    function setVerfiedContracts(bool, address) external;
 }
 
 contract PublicDonation is  ReentrancyGuard {
@@ -44,6 +45,7 @@ contract PublicDonation is  ReentrancyGuard {
 
     constructor(address mainNFTAddress) {
         mainNFT = IMainNFT(mainNFTAddress);
+        mainNFT.setVerfiedContracts(true, address(this));
     }
 
     /***************Author options BGN***************/
@@ -74,7 +76,7 @@ contract PublicDonation is  ReentrancyGuard {
     function paymentEth(uint256 author, uint256 value) internal nonReentrant {
         uint256 contractFee = mainNFT.contractFeeForAuthor(author, value);
         uint256 amount = value - contractFee;
-        (bool success1, ) = address(mainNFT).call{value: contractFee}("");
+        (bool success1, ) = owner().call{value: contractFee}("");
         (bool success2, ) = ownerOf(author).call{value: amount}("");
         require(success1 && success2, "fail");
         mainNFT.addAuthorsRating(address(0), value, author);
@@ -86,7 +88,7 @@ contract PublicDonation is  ReentrancyGuard {
 
         IERC20 token = IERC20(tokenAddress);
         uint256 contractFee = mainNFT.contractFeeForAuthor(author, tokenAmount);
-        token.transferFrom(sender, address(mainNFT), contractFee);
+        token.transferFrom(sender, owner(), contractFee);
         uint256 amount = tokenAmount - contractFee;
         token.transferFrom(sender, ownerOf(author), amount);
         mainNFT.addAuthorsRating(tokenAddress, tokenAmount, author);
@@ -106,10 +108,6 @@ contract PublicDonation is  ReentrancyGuard {
     /***************User interfaces END***************/
 
     /***************Support BGN***************/
-    function mainContract() public view returns(address){
-        return address(mainNFT);
-    }
-
     function owner() public view returns(address){
         return mainNFT.commissionCollector();
     }
@@ -124,7 +122,7 @@ contract PublicDonation is  ReentrancyGuard {
 
     function withdraw() external onlyOwner nonReentrant {
         uint256 amount = address(this).balance;
-        (bool success, ) = address(mainNFT).call{value: amount}("");
+        (bool success, ) = owner().call{value: amount}("");
         require(success, "fail");
     }
 
@@ -132,12 +130,12 @@ contract PublicDonation is  ReentrancyGuard {
         IERC20 token = IERC20(_address);
         uint256 tokenBalance = token.balanceOf(address(this));
         uint256 amount = tokenBalance;
-        token.transfer(address(mainNFT), amount);
+        token.transfer(owner(), amount);
     }
     /***************Support END**************/
 
     receive() external payable {
-        (bool success, ) = address(mainNFT).call{value: msg.value}("");
+        (bool success, ) = owner().call{value: msg.value}("");
         require(success, "fail");
         emit Received(msg.sender, msg.value);
     }

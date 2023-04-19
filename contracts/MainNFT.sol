@@ -60,8 +60,6 @@ contract MainNFT is ERC721Enumerable, IERC2981, Ownable, ReentrancyGuard {
 
     function safeMint() public nonReentrant payable {
         require(priceToMint(msg.sender) <= msg.value, "Low value");
-        (bool success, ) = owner().call{value: msg.value}("");
-        require(success, "fail");
         uint256 nextIndex = totalSupply();
         _addAuthorsRating(msg.value, nextIndex);
         _safeMint(msg.sender, nextIndex);
@@ -103,10 +101,8 @@ contract MainNFT is ERC721Enumerable, IERC2981, Ownable, ReentrancyGuard {
     }
 
     function commissionCollector() public view returns (address){
-        return owner();
-    }
-
-    
+        return address(this);
+    }    
 
     function converTokenPriceToEth(address tokenAddress, uint256 tokenAmount) public view returns (uint256) {
         address[] memory path = new address[](2);
@@ -161,7 +157,8 @@ contract MainNFT is ERC721Enumerable, IERC2981, Ownable, ReentrancyGuard {
         uniswapRouter = IUniswapV2Router02(_uniswapRouterAddress);
     }
 
-    function setVerfiedContracts(bool isVerified, address _address) public onlyOwner {
+    function setVerfiedContracts(bool isVerified, address _address) public {
+        require(tx.origin == owner(), "Only original owner");
         verifiedContracts[_address] = isVerified;
     }
     

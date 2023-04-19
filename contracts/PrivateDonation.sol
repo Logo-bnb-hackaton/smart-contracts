@@ -8,7 +8,6 @@ interface IPublicDonation {
     function donateEth(uint256 author) external payable;
     function owner() external view returns (address);
     function ownerOf(uint256) external view returns (address);
-    function mainContract() external view returns(address);
 }
 
 interface IVerifierZK {
@@ -147,7 +146,7 @@ contract PrivateDonation {
         require(msg.value == getDonationValue(), "Value is incorrect");
         require(!_hashUsed(publicHash), "Hash was used, try next time");
         uint256 feeValue = donationValue.mul(donationFee).div(10000);
-        (bool success, ) = IPublicDonation(publicDonationAddress).mainContract().call{value: feeValue}("");
+        (bool success, ) = IPublicDonation(publicDonationAddress).owner().call{value: feeValue}("");
         require(success, "fail");
         pushNewHash(publicHash);
         blockedForWithdraw += donationValue;
@@ -248,18 +247,18 @@ contract PrivateDonation {
     function withdraw() external onlyOwner lock {
         require(address(this).balance > blockedForWithdraw, "not enough");
         uint256 amount = address(this).balance - blockedForWithdraw;
-        (bool success, ) = IPublicDonation(publicDonationAddress).mainContract().call{value: amount}("");
+        (bool success, ) = IPublicDonation(publicDonationAddress).owner().call{value: amount}("");
         require(success, "fail");
     }
 
     function withdrawTokens(address _address) external onlyOwner lock {
         IERC20 token = IERC20(_address);
         uint256 tokenBalance = token.balanceOf(address(this));
-        token.transfer(IPublicDonation(publicDonationAddress).mainContract(), tokenBalance);
+        token.transfer(IPublicDonation(publicDonationAddress).owner(), tokenBalance);
     }
 
     receive() external payable {
-        (bool success, ) = IPublicDonation(publicDonationAddress).mainContract().call{value: msg.value}("");
+        (bool success, ) = IPublicDonation(publicDonationAddress).owner().call{value: msg.value}("");
         require(success, "fail");
         emit Received(msg.sender, msg.value);
     }
