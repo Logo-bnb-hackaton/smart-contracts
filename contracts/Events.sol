@@ -21,11 +21,6 @@ contract Events is ReentrancyGuard {
     address verifierProvider;
     IMainNFT mainNFT;
 
-    enum Types {
-        notModerated,
-        moderated
-    }
-
     struct Participants {
         address[] confirmed;
         address[] notConfirmed;
@@ -39,6 +34,7 @@ contract Events is ReentrancyGuard {
     }
 
     struct PaymentSession {
+        bytes32 hexName;
         bool fundsWithdrawn;
         address tokenAddress;
         uint256 price;
@@ -46,8 +42,7 @@ contract Events is ReentrancyGuard {
         uint256 eventStartTime;
         uint256 periodOfPenalty;
         uint256 maxParticipants;
-        string name;
-        Types typeOf;
+        bool isModerated;
         Participants participants;
         Rating rating;
     }
@@ -56,11 +51,10 @@ contract Events is ReentrancyGuard {
     mapping(uint256 => mapping(address => bool)) public blackListByAuthor;
     mapping(uint256 => PaymentSession[]) public paymentSessionByAuthor;
     mapping(uint256 => mapping(uint256 => mapping(address => bool))) public participantVoted;
-    mapping(uint256 => mapping(uint256 => mapping(address => string))) public invitationToTg;
     mapping(address => uint256) internal blockedForWithdraw;
 
     event Received(address indexed sender, uint256 value);
-    event NewPaymentSessionCreated(uint256 indexed author, string name, address token, uint256 price, uint256 expirationTime, uint256 maxParticipants, Types typeOf);
+    event NewPaymentSessionCreated(uint256 indexed author, bytes32 indexed name, address token, uint256 price, uint expirationTime, uint eventStartTime, uint periodOfPenalty, uint256 maxParticipants, bool isModerated);
     event AwaitingConfirmation(address indexed participant, uint256 indexed author, uint256 indexed paymentSessionId);
     event PurchaseConfirmed(address indexed participant, uint256 indexed author, uint256 indexed paymentSessionId);
     event PurchaseRejected(address indexed participant, uint256 indexed author, uint256 indexed paymentSessionId);
@@ -113,38 +107,38 @@ contract Events is ReentrancyGuard {
     /***************Author options BGN***************/
     function createNewPaymentSessionByEth(
         uint256 author, 
+        bytes32 hexName,
         uint256 price, 
         uint256 expirationTime, 
         uint256 eventStartTime,
         uint256 periodOfPenalty,
         uint256 maxParticipants, 
-        Types typeOf, 
-        string memory name) public onlyAuthor(author){
+        bool isModerated) public onlyAuthor(author){
             require(price >= 10**6, "Low price");
-            createNewPaymentSessionByToken(author, address(0), price, expirationTime, eventStartTime, periodOfPenalty, maxParticipants, typeOf, name);
+            createNewPaymentSessionByToken(author, hexName, address(0), price, expirationTime, eventStartTime, periodOfPenalty, maxParticipants, isModerated);
         }
 
     function createNewPaymentSessionByToken(
         uint256 author, 
+        bytes32 hexName,
         address tokenAddress, 
         uint256 price, 
         uint256 expirationTime, 
         uint256 eventStartTime,
         uint256 periodOfPenalty,
         uint256 maxParticipants, 
-        Types typeOf, 
-        string memory name) supportsERC20(tokenAddress) public onlyAuthor(author){
+        bool isModerated) supportsERC20(tokenAddress) public onlyAuthor(author){
             require(price > 0, "Low price");
             require(
                 expirationTime > block.timestamp && eventStartTime >= expirationTime && eventStartTime.add(periodOfPenalty) >= eventStartTime,
                 "Timestamp error");
-            Rating memory rating = Rating(0, 0, 0);  
             Participants memory participants = Participants(
                 new address[](0),
                 new address[](0),
                 new address[](0)
             );        
             PaymentSession memory paymentSession = PaymentSession ({
+                hexName: hexName,
                 fundsWithdrawn: false,
                 tokenAddress: tokenAddress,
                 price: price,
@@ -152,13 +146,12 @@ contract Events is ReentrancyGuard {
                 eventStartTime: eventStartTime,
                 periodOfPenalty: periodOfPenalty,
                 maxParticipants: maxParticipants,
-                name: name,
-                typeOf: typeOf,
+                isModerated: isModerated,
                 participants: participants,
-                rating: rating
+                rating: Rating(0, 0, 0)
             });
             paymentSessionByAuthor[author].push(paymentSession);
-            emit NewPaymentSessionCreated(author, name, tokenAddress, price, expirationTime, maxParticipants, typeOf);
+            emit NewPaymentSessionCreated(author, hexName, tokenAddress, price, expirationTime, eventStartTime, maxParticipants, maxParticipants, isModerated);
     }
 
     function addToWhiteList(address user, uint256 author) public onlyAuthor(author){
@@ -265,7 +258,6 @@ contract Events is ReentrancyGuard {
     function getAllPaymentSessionsByAuthor(uint256 author) public view returns (PaymentSession[] memory){
         return paymentSessionByAuthor[author];
     }
-
     /***************Author options END***************/
 
     /***************User interfaces BGN***************/
@@ -285,7 +277,7 @@ contract Events is ReentrancyGuard {
         require(tokenAddress == address(0) && price == msg.value || tokenAddress != address(0), "Error value");
         _blockTokens(tokenAddress, price);
 
-        if (whiteListByAuthor[author][msg.sender] || paymentSession.typeOf == Types.notModerated){
+        if (whiteListByAuthor[author][msg.sender] || !paymentSession.isModerated){
             participants.confirmed.push(msg.sender);
             emit PurchaseConfirmed(msg.sender, author, paymentSessionId);
         } else {
@@ -358,10 +350,6 @@ contract Events is ReentrancyGuard {
             }
         }
         return false;
-    }
-
-    function setInvitationToTg(uint256 author, uint256 paymentSessionId, address participant, string memory invitation) public onlyVerifierProvider{
-        invitationToTg[author][paymentSessionId][participant] = invitation;
     }
 
     function owner() public view returns(address){
