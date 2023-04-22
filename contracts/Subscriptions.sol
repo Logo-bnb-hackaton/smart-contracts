@@ -58,9 +58,10 @@ contract Subscriptions is  ReentrancyGuard {
 
     event Received(address indexed sender, uint256 value);
     event Donate(address indexed sender, address indexed token, uint256 value, uint256 indexed author);
-    event NewNewOneTimeSubscriptionCreated(uint256 indexed author, bytes32 indexed hexName, address[] tokenAddresses, uint256 price, Discount[] discounts);
+    event NewOneTimeSubscriptionCreated(uint256 indexed author, bytes32 indexed hexName, address[] tokenAddresses, uint256 price, Discount[] discounts);
     event NewRegularSubscriptionCreated(uint256 indexed author, bytes32 indexed hexName, address[] tokenAddresses, uint256 price, uint256 paymetnPeriod, Discount[] discounts);
-    
+    event NewSubscription(address indexed participant, uint256 indexed author, uint256 indexed subscriptionId, uint256 subscriptionEndTime, address tokenAddress, uint256 amount);
+
     modifier onlyAuthor(uint256 author) {
         require(mainNFT.onlyAuthor(msg.sender, author), "Only for Author");
         _;
@@ -147,7 +148,7 @@ contract Subscriptions is  ReentrancyGuard {
             if (isRegularSubscription) {
                 emit NewRegularSubscriptionCreated(author, hexName, tokenAddresses, price, paymetnPeriod, discountProgramm);
             } else {
-                emit NewNewOneTimeSubscriptionCreated(author, hexName, tokenAddresses, price, discountProgramm);
+                emit NewOneTimeSubscriptionCreated(author, hexName, tokenAddresses, price, discountProgramm);
             }
     }
 
@@ -254,6 +255,7 @@ contract Subscriptions is  ReentrancyGuard {
         }
         paymentSubscriptionsByAuthorInEth[author][subscriptionId].push(Payment(targetAmountInEth, block.timestamp));
         totalPaymentSubscriptionsByAuthoInEth[author][subscriptionId] += targetAmountInEth;
+        emit NewSubscription(msg.sender, author, subscriptionId, subscriptionEndTime, tokenAddress, amount);
     }
 
     function _paymentEth(uint256 author, uint256 value) internal nonReentrant {
