@@ -59,7 +59,7 @@ async function createNewSubscriptionByToken(
   price,
   discountProgramm
 ) {
-  const tx = await subscriptionsContract.createNewSubscriptionByEth(
+  const tx = await subscriptionsContract.createNewSubscriptionByToken(
     hexName,
     author,
     isRegularSubscription,
@@ -79,7 +79,7 @@ async function getTotalPaymentAmountForPeriod(
   subscriptionId,
   periods
 ) {
-  const amounts = await contract.getTotalPaymentAmountForPeriod(
+  const amounts = await subscriptionsContract.getTotalPaymentAmountForPeriod(
     tokenAddress,
     author,
     subscriptionId,
@@ -104,13 +104,14 @@ async function subscriptionPayment(
     subscriptionId,
     periods
   );
+  const amount = amounts.amount;
   if (tokenAddress.toLowerCase() === zeroAddr) {
     const tx = await subscriptionsContract.subscriptionPayment(
       author,
       subscriptionId,
       tokenAddress,
       periods,
-      { value: amounts[0] }
+      { value: amount }
     );
     console.log(`subscriptionPayment hash: ${tx.hash}`);
     await signer.provider.waitForTransaction(tx.hash, WAIT_BLOCK_CONFIRMATIONS);
@@ -118,17 +119,20 @@ async function subscriptionPayment(
     const contractERC20 = new ethers.Contract(tokenAddress, ERC20_ABI, signer);
     const allowance = await contractERC20.allowance(
       addressSigner,
-      MAIN_NFT_ADDRESS
+      SUBSCRIPTIONS_ADDRESS
     );
 
     const balance = await contractERC20.balanceOf(addressSigner);
-    if (balance < amounts[0]) {
+    if (balance.lt(amount)) {
       console.log(`Balance to low for subscriptions`);
       return;
     }
 
-    if (allowance < amounts[0]) {
-      const approveTx = await contractERC20.approve(MAIN_NFT_ADDRESS, balance);
+    if (allowance.lt(amount)) {
+      const approveTx = await contractERC20.approve(
+        SUBSCRIPTIONS_ADDRESS,
+        balance
+      );
       console.log(`approve hash: ${approveTx.hash}`);
       await signer.provider.waitForTransaction(
         approveTx.hash,
@@ -150,7 +154,7 @@ async function subscriptionPayment(
 
 function generateNewHash(someString) {
   const hash = ethers.utils.keccak256(ethers.utils.toUtf8Bytes(someString));
-  console.log(hash);
+  console.log(`generateNewHash: ${hash}`);
   return hash;
 }
 
@@ -160,6 +164,7 @@ async function main() {
   const author = 1;
   const isRegularSubscription = false;
   const paymetnPeriod = 14400;
+  const tokenAddresses = ["0x5eAD2D2FA49925dbcd6dE99A573cDA494E3689be"];
   const price = BigNumber.from(10 ** 15);
   const discountProgramm = [
     {
@@ -172,6 +177,7 @@ async function main() {
     },
   ];
 
+  /** Создание подписки в нативной монете
   await createNewSubscriptionByEth(
     hexName,
     author,
@@ -180,6 +186,29 @@ async function main() {
     price,
     discountProgramm
   );
+  */
+
+  /** Создание подписки в токене
+  await createNewSubscriptionByToken(
+    hexName,
+    author,
+    isRegularSubscription,
+    paymetnPeriod,
+    tokenAddresses,
+    price,
+    discountProgramm
+  );
+   */
+
+  /** Оплата подписки в нативной монете
+  const subscriptionId = 0;
+  await subscriptionPayment(author, subscriptionId, zeroAddr, 5);
+  */
+
+  /** Оплата подписки в токене
+  const subscriptionId = 1;
+  await subscriptionPayment(author, subscriptionId, tokenAddresses[0], 2);
+  */
 }
 
 main().catch((error) => {
