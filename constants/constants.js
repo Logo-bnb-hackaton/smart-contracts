@@ -1,5 +1,5 @@
-export const MAIN_NFT_ADDRESS = "0xA3b157a0c84c00AA6260F3cd06cE8746541aA8aB";
-export const MAIN_NFT_ABI = [
+exports.MAIN_NFT_ADDRESS = "0xA3b157a0c84c00AA6260F3cd06cE8746541aA8aB";
+exports.MAIN_NFT_ABI = [
   {
     inputs: [
       {
@@ -489,9 +489,8 @@ export const MAIN_NFT_ABI = [
   },
   { stateMutability: "payable", type: "receive" },
 ];
-export const PUBLIC_DONATION_ADDRESS =
-  "0xB56311eA8b47454F2F3b58D6b3faeB84eE8FFB00";
-export const PUBLIC_DONATION_ABI = [
+exports.PUBLIC_DONATION_ADDRESS = "0xB56311eA8b47454F2F3b58D6b3faeB84eE8FFB00";
+exports.PUBLIC_DONATION_ABI = [
   {
     inputs: [
       { internalType: "address", name: "mainNFTAddress", type: "address" },
@@ -633,9 +632,8 @@ export const PUBLIC_DONATION_ABI = [
   },
   { stateMutability: "payable", type: "receive" },
 ];
-export const SUBSCRIPTIONS_ADDRESS =
-  "0xe56e5FD2D7aeAde39B04EFb41992a233948D304e";
-export const SUBSCRIPTIONS_ABI = [
+exports.SUBSCRIPTIONS_ADDRESS = "0xe56e5FD2D7aeAde39B04EFb41992a233948D304e";
+exports.SUBSCRIPTIONS_ABI = [
   {
     inputs: [
       { internalType: "address", name: "mainNFTAddress", type: "address" },
@@ -1192,8 +1190,8 @@ export const SUBSCRIPTIONS_ABI = [
   },
   { stateMutability: "payable", type: "receive" },
 ];
-export const EVENTS_ADDRESS = "0xe0f49A0ef3371B46F72ffd996E992F256ABA5b8C";
-export const EVENTS_ABI = [
+exports.EVENTS_ADDRESS = "0xe0f49A0ef3371B46F72ffd996E992F256ABA5b8C";
+exports.EVENTS_ABI = [
   {
     inputs: [
       { internalType: "address", name: "_mainNFTAddress", type: "address" },
@@ -1707,4 +1705,91 @@ export const EVENTS_ABI = [
     type: "function",
   },
   { stateMutability: "payable", type: "receive" },
+];
+exports.ERC20_ABI = [
+  {
+    inputs: [],
+    stateMutability: "nonpayable",
+    type: "constructor",
+  },
+  {
+    inputs: [
+      {
+        internalType: "address",
+        name: "owner",
+        type: "address",
+      },
+      {
+        internalType: "address",
+        name: "spender",
+        type: "address",
+      },
+    ],
+    name: "allowance",
+    outputs: [
+      {
+        internalType: "uint256",
+        name: "",
+        type: "uint256",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [
+      {
+        internalType: "address",
+        name: "spender",
+        type: "address",
+      },
+      {
+        internalType: "uint256",
+        name: "amount",
+        type: "uint256",
+      },
+    ],
+    name: "approve",
+    outputs: [
+      {
+        internalType: "bool",
+        name: "",
+        type: "bool",
+      },
+    ],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [
+      {
+        internalType: "address",
+        name: "account",
+        type: "address",
+      },
+    ],
+    name: "balanceOf",
+    outputs: [
+      {
+        internalType: "uint256",
+        name: "",
+        type: "uint256",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [],
+    name: "symbol",
+    outputs: [
+      {
+        internalType: "string",
+        name: "",
+        type: "string",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
 ];
