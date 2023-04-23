@@ -46,7 +46,7 @@ contract MainNFT is ERC721Enumerable, IERC2981, Ownable, ReentrancyGuard {
         _;
     }
 
-    constructor(address _uniswapRouterAddress, uint8 _levelsCount, string memory _baseURI) ERC721("SocialFi by 0xc0de", "SoFi") {
+    constructor(address _uniswapRouterAddress, uint8 _levelsCount, string memory _baseURI) ERC721("SocialFi", "SoFi") {
         levels = _levelsCount;
         baseURI = _baseURI;
         setNewRouter(_uniswapRouterAddress);

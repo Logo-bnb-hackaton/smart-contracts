@@ -18,7 +18,6 @@ interface IMainNFT {
 contract Events is ReentrancyGuard {
     using SafeMath for uint256;
 
-    address verifierProvider;
     IMainNFT mainNFT;
 
     struct Participants {
@@ -71,11 +70,6 @@ contract Events is ReentrancyGuard {
         _;
     }
 
-    modifier onlyVerifierProvider(){
-        require(verifierProvider == msg.sender, "Only verifier provider");
-        _;
-    }
-
     modifier supportsERC20(address _address){
         require(
             _address == address(0) || IERC20(_address).totalSupply() > 0 && IERC20(_address).allowance(_address, _address) >= 0,
@@ -98,10 +92,9 @@ contract Events is ReentrancyGuard {
         _;
     }
 
-    constructor(address _mainNFTAddress, address _verifierProvider) {
+    constructor(address _mainNFTAddress) {
         mainNFT = IMainNFT(_mainNFTAddress);
         mainNFT.setVerfiedContracts(true, address(this));
-        setVerifierProvider(_verifierProvider);
     }
 
     /***************Author options BGN***************/
@@ -362,10 +355,6 @@ contract Events is ReentrancyGuard {
 
     function setIMainNFT(address mainNFTAddress) public onlyOwner{
         mainNFT = IMainNFT(mainNFTAddress);
-    }
-
-    function setVerifierProvider(address _verifierProvider) public onlyOwner{
-        verifierProvider = _verifierProvider;
     }
 
     function withdraw() external onlyOwner nonReentrant {

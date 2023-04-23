@@ -29,3 +29,23 @@ npx hardhat test
 
 npx hardhat run scripts/deploy.js --network bnb_testnet
 ```
+
+## Contracts
+
+owner address: 0xc0DE5BCbE4dd5A6E1F7C827B898330d69CcEF216
+
+MainNFT.sol: 0xA3b157a0c84c00AA6260F3cd06cE8746541aA8aB
+
+https://testnet.bscscan.com/address/0xA3b157a0c84c00AA6260F3cd06cE8746541aA8aB#code
+
+PublicDonation.sol: 0xB56311eA8b47454F2F3b58D6b3faeB84eE8FFB00
+
+https://testnet.bscscan.com/address/0xB56311eA8b47454F2F3b58D6b3faeB84eE8FFB00#code
+
+Subscriptions.sol: 0x5193628D93Da99A75FF99a4D8F07890b9f73900a
+
+https://testnet.bscscan.com/address/0x5193628D93Da99A75FF99a4D8F07890b9f73900a#code
+
+Eventf.sol: 0xe0f49A0ef3371B46F72ffd996E992F256ABA5b8C
+
+https://testnet.bscscan.com/address/0xe0f49A0ef3371B46F72ffd996E992F256ABA5b8C#code
