@@ -42,9 +42,9 @@ PublicDonation.sol: 0xB56311eA8b47454F2F3b58D6b3faeB84eE8FFB00
 
 https://testnet.bscscan.com/address/0xB56311eA8b47454F2F3b58D6b3faeB84eE8FFB00#code
 
-Subscriptions.sol: 0x5193628D93Da99A75FF99a4D8F07890b9f73900a
+Subscriptions.sol: 0xe56e5FD2D7aeAde39B04EFb41992a233948D304e
 
-https://testnet.bscscan.com/address/0x5193628D93Da99A75FF99a4D8F07890b9f73900a#code
+https://testnet.bscscan.com/address/0xe56e5FD2D7aeAde39B04EFb41992a233948D304e#code
 
 Eventf.sol: 0xe0f49A0ef3371B46F72ffd996E992F256ABA5b8C
 

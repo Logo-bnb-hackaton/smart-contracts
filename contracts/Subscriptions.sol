@@ -27,7 +27,9 @@ contract Subscriptions is  ReentrancyGuard {
     }
 
     struct Payment{
+        address tokenAddress;
         uint256 amount;
+        uint256 amountInEth;
         uint256 paymentTime;
     }
 
@@ -50,14 +52,12 @@ contract Subscriptions is  ReentrancyGuard {
     mapping(uint256 => mapping(uint256 => Discount[])) public discountSubscriptionsByAuthor;
     mapping(uint256 => mapping(uint256 => Participant[])) public participantsSubscriptionsByAuthor;
     mapping(uint256 => mapping(uint256 => mapping(address => uint256))) public participantIndex;
+    mapping(bytes32 => uint256[2]) public subscriptionIndexByHexName;
     
-    mapping(uint256 => mapping(uint256 => Payment[])) public paymentSubscriptionsByAuthorInEth;
+    mapping(uint256 => mapping(uint256 => Payment[])) public paymentSubscriptionsByAuthor;
     mapping(uint256 => mapping(uint256 => uint256)) public totalPaymentSubscriptionsByAuthoInEth;
 
-    mapping(uint256 => mapping(uint256 => mapping(address => uint256))) public participantVotedTime;
-
     event Received(address indexed sender, uint256 value);
-    event Donate(address indexed sender, address indexed token, uint256 value, uint256 indexed author);
     event NewOneTimeSubscriptionCreated(uint256 indexed author, bytes32 indexed hexName, address[] tokenAddresses, uint256 price, Discount[] discounts);
     event NewRegularSubscriptionCreated(uint256 indexed author, bytes32 indexed hexName, address[] tokenAddresses, uint256 price, uint256 paymetnPeriod, Discount[] discounts);
     event NewSubscription(address indexed participant, uint256 indexed author, uint256 indexed subscriptionId, uint256 subscriptionEndTime, address tokenAddress, uint256 amount);
@@ -101,7 +101,6 @@ contract Subscriptions is  ReentrancyGuard {
         uint256 paymetnPeriod,
         uint256 price,
         Discount[] memory discountProgramm) public onlyAuthor(author){
-            require(price >= 10**6, "Low price");
             address[] memory tokenAddresses = new address[](1);
             tokenAddresses[0] = address(0);
             createNewSubscriptionByToken(hexName, author, isRegularSubscription, paymetnPeriod, tokenAddresses, price, discountProgramm);
@@ -115,17 +114,20 @@ contract Subscriptions is  ReentrancyGuard {
         address[] memory tokenAddresses,
         uint256 price,
         Discount[] memory discountProgramm) public onlyAuthor(author){
-            require(price > 0, "Low price");
+            uint256[2] memory nameHaxIndex = subscriptionIndexByHexName[hexName];
+            require(_efficientHash(bytes32(nameHaxIndex[0]), bytes32(nameHaxIndex[1])) == _efficientHash(bytes32(0), bytes32(0)),"Specified haxName is already in use");
+            require(tokenAddresses[0] == address(0) && price >= 10**6 || price > 0, "Low price");
             require(tokenAddresses.length > 0, "Specify at least one token address");
             require(!mainNFT.isAddressExist(address(0), tokenAddresses) ||  tokenAddresses.length == 1, "It is unacceptable to specify a native coin and tokens");
-            require(!isRegularSubscription || paymetnPeriod >= 4 hours, "Payment period cannot be less than 4 hours");
-            if (tokenAddresses[0] != address(0)){
+            require(!isRegularSubscription || paymetnPeriod >= 4 hours, "Payment period cannot be less than 4 hours for regular subscription");
+            if (tokenAddresses[0] != address(0) && tokenAddresses.length > 1){
                 for(uint256 i = 0; i < tokenAddresses.length; i++){
                     require(mainNFT.converTokenPriceToEth(tokenAddresses[i], 10**24) > 0, "It is not possible to accept payment in one of the specified currencies");
                 }
             }
 
             uint256 len = subscriptionsByAuthor[author].length;
+            subscriptionIndexByHexName[hexName] = [author, len];
             for (uint256 i = 0; i < discountProgramm.length; i++){
                 require(discountProgramm[i].amountAsPPM <= 1000, "Error in discount programm");
                 discountSubscriptionsByAuthor[author][len].push(discountProgramm[i]);
@@ -143,7 +145,6 @@ contract Subscriptions is  ReentrancyGuard {
                 price: price
             });
             subscriptionsByAuthor[author].push(subscription);
-
 
             if (isRegularSubscription) {
                 emit NewRegularSubscriptionCreated(author, hexName, tokenAddresses, price, paymetnPeriod, discountProgramm);
@@ -163,22 +164,28 @@ contract Subscriptions is  ReentrancyGuard {
             discountSubscriptionsByAuthor[author][subscriptionId].pop();
         }
         for (uint256 i = 0; i < discountProgramm.length; i++){
-            require(discountProgramm[i].amountAsPPM <= 1000, "Error in discount programm");
+            require(discountProgramm[i].amountAsPPM < 1000, "Error in discount programm");
             discountSubscriptionsByAuthor[author][len].push(discountProgramm[i]);
         }
     }
 
-    function setNewTokensAndPrice(uint256 author, uint256 subscriptionId, uint256 paymetnPeriod) public onlyAuthor(author){
+    function setNewPaymetnPeriod(uint256 author, uint256 subscriptionId, uint256 paymetnPeriod) public onlyAuthor(author){
         require(subscriptionsByAuthor[author][subscriptionId].isActive, "Subscription is not active");
+        require(subscriptionsByAuthor[author][subscriptionId].isRegularSubscription, "Only for regular subscription");
         require(paymetnPeriod >= 4 hours, "Payment period cannot be less than 4 hours");
         subscriptionsByAuthor[author][subscriptionId].paymetnPeriod = paymetnPeriod;
     }
 
-    function setNewPaymetnPeriod(uint256 author, uint256 subscriptionId,  address[] memory tokenAddresses, uint256 price) public onlyAuthor(author){
+    function setNewTokensAndPrice(uint256 author, uint256 subscriptionId,  address[] memory tokenAddresses, uint256 price) public onlyAuthor(author){
         require(subscriptionsByAuthor[author][subscriptionId].isActive, "Subscription is not active");
         require(tokenAddresses.length > 0, "Specify at least one token address");
         require(!mainNFT.isAddressExist(address(0), tokenAddresses) ||  tokenAddresses.length == 1, "It is unacceptable to specify a native coin and tokens");
         require(tokenAddresses[0] == address(0) && price >= 10**6 || price > 0, "Low price");
+        if (tokenAddresses[0] != address(0) && tokenAddresses.length > 1){
+                for(uint256 i = 0; i < tokenAddresses.length; i++){
+                    require(mainNFT.converTokenPriceToEth(tokenAddresses[i], 10**24) > 0, "It is not possible to accept payment in one of the specified currencies");
+                }
+            }
         subscriptionsByAuthor[author][subscriptionId].tokenAddresses = tokenAddresses;
         subscriptionsByAuthor[author][subscriptionId].price = price;
     }
@@ -191,8 +198,8 @@ contract Subscriptions is  ReentrancyGuard {
         return discountSubscriptionsByAuthor[author][subscriptionId];
     }
 
-    function getPaymentSubscriptionsByAuthorInEth(uint256 author, uint256 subscriptionId) public view returns (Payment[] memory){
-        return paymentSubscriptionsByAuthorInEth[author][subscriptionId];
+    function getPaymentSubscriptionsByAuthor(uint256 author, uint256 subscriptionId) public view returns (Payment[] memory){
+        return paymentSubscriptionsByAuthor[author][subscriptionId];
     }
 
     function getParticipantsSubscriptionsByAuthor(uint256 author, uint256 subscriptionId) public view returns (Participant[] memory){
@@ -210,18 +217,33 @@ contract Subscriptions is  ReentrancyGuard {
         }
     }
 
-    function getTotalPaymentAmountForPeriod(uint256 author, uint256 subscriptionId, uint256 periods) public view returns (uint256){
+    function getTotalPaymentAmountForPeriod(
+        address tokenAddress, 
+        uint256 author, 
+        uint256 subscriptionId, 
+        uint256 periods) public view returns (uint256 amount, uint256 amountInEth){
         Subscription memory subscription = subscriptionsByAuthor[author][subscriptionId];
         Discount[] memory discount = discountSubscriptionsByAuthor[author][subscriptionId];
-        uint256 amount = (subscription.price).mul(periods);
-        for (uint256 i = 0; i < discount.length; i++){
-            if (periods <= discount[i].period){
-                amount = subscription.price.mul(periods).mul(discount[i].amountAsPPM).div(1000);
-            } else {
-                break;
+        uint256 maxDiscount = 0;
+        if (subscription.isRegularSubscription){
+            for (uint256 i = 0; i < discount.length; i++){
+                if (periods >= discount[i].period && maxDiscount < discount[i].amountAsPPM){
+                    maxDiscount = discount[i].amountAsPPM;
+                }
             }
         }
-        return amount;
+        amount = subscription.price.mul(periods).mul(1000 - maxDiscount).div(1000);
+        if (tokenAddress != address(0)) {
+            amountInEth = mainNFT.converTokenPriceToEth(tokenAddress, amount);
+            uint256 baseAmountInEth = mainNFT.converTokenPriceToEth(subscription.tokenAddresses[0], amount);
+            amount = amountInEth > 0 && baseAmountInEth > 0 ? amount.mul(baseAmountInEth).div(amountInEth) : amount;
+        } else {
+            amountInEth = amount;
+        }
+    }
+
+    function getSubscriptionIndexByHexName(bytes32 hexName) public view returns (uint256[2] memory){
+        return subscriptionIndexByHexName[hexName];
     }
     /***************Author options END***************/
 
@@ -231,30 +253,31 @@ contract Subscriptions is  ReentrancyGuard {
         require(periods > 0, "Periods must be greater than zero");
         Subscription memory subscription = subscriptionsByAuthor[author][subscriptionId];
         require(subscription.isActive, "Subscription is not active");
-        require(!mainNFT.isAddressExist(tokenAddress, subscription.tokenAddresses), "The token is not suitable for payment");
-        uint256 amount = getTotalPaymentAmountForPeriod(author, subscriptionId, periods);
-        uint256 targetAmountInEth = mainNFT.converTokenPriceToEth(tokenAddress, amount);
+        require(mainNFT.isAddressExist(tokenAddress, subscription.tokenAddresses), "The token is not suitable for payment");
+        uint256 thisParticipantIndex = participantIndex[author][subscriptionId][msg.sender];
+        require(thisParticipantIndex == 0 || subscription.isRegularSubscription, "You already have access to a subscription");
+        (uint256 amount, uint256 amountInEth) = getTotalPaymentAmountForPeriod(tokenAddress, author, subscriptionId, periods);
         if (tokenAddress == address(0)){
             require(msg.value == amount, "Payment value does not match the price");
             _paymentEth(author, amount);
         } else {
-            uint256 baseAmountInEth = mainNFT.converTokenPriceToEth(subscription.tokenAddresses[0], amount);
-            uint256 paymentAmount = amount.mul(baseAmountInEth).div(targetAmountInEth);
-            _paymentToken(msg.sender, tokenAddress, paymentAmount, author);
+            require(msg.value == 0, "Payment in native coin is not provided for this subscription");
+            _paymentToken(msg.sender, tokenAddress, amount, author);
         }
 
         uint256 subscriptionEndTime = subscription.isRegularSubscription ?
             (block.timestamp).add(subscription.paymetnPeriod.mul(periods)) : type(uint256).max;
-        uint256 thisParticipantIndex = participantIndex[author][subscriptionId][msg.sender];
         if (thisParticipantIndex != 0){
+            subscriptionEndTime = (participantsSubscriptionsByAuthor[author][subscriptionId][thisParticipantIndex].subscriptionEndTime)
+                .add(subscription.paymetnPeriod.mul(periods));
             participantsSubscriptionsByAuthor[author][subscriptionId][thisParticipantIndex].subscriptionEndTime = subscriptionEndTime;
         } else {
             Participant[] storage participants = participantsSubscriptionsByAuthor[author][subscriptionId];
             participantIndex[author][subscriptionId][msg.sender] = participants.length;
             participants.push(Participant(msg.sender, subscriptionEndTime));
         }
-        paymentSubscriptionsByAuthorInEth[author][subscriptionId].push(Payment(targetAmountInEth, block.timestamp));
-        totalPaymentSubscriptionsByAuthoInEth[author][subscriptionId] += targetAmountInEth;
+        paymentSubscriptionsByAuthor[author][subscriptionId].push(Payment(tokenAddress, amount, amountInEth, block.timestamp));
+        totalPaymentSubscriptionsByAuthoInEth[author][subscriptionId] += amountInEth;
         emit NewSubscription(msg.sender, author, subscriptionId, subscriptionEndTime, tokenAddress, amount);
     }
 
@@ -278,6 +301,15 @@ contract Subscriptions is  ReentrancyGuard {
     /***************User interfaces END***************/
 
     /***************Support BGN***************/
+    function _efficientHash(bytes32 a, bytes32 b) private pure returns (bytes32 value) {
+        /// @solidity memory-safe-assembly
+        assembly {
+            mstore(0x00, a)
+            mstore(0x20, b)
+            value := keccak256(0x00, 0x40)
+        }
+    }
+
     function owner() public view returns(address){
         return mainNFT.commissionCollector();
     }
