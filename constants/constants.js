@@ -634,7 +634,7 @@ export const PUBLIC_DONATION_ABI = [
   { stateMutability: "payable", type: "receive" },
 ];
 export const SUBSCRIPTIONS_ADDRESS =
-  "0x5193628D93Da99A75FF99a4D8F07890b9f73900a";
+  "0xe56e5FD2D7aeAde39B04EFb41992a233948D304e";
 export const SUBSCRIPTIONS_ABI = [
   {
     inputs: [
@@ -642,37 +642,6 @@ export const SUBSCRIPTIONS_ABI = [
     ],
     stateMutability: "nonpayable",
     type: "constructor",
-  },
-  {
-    anonymous: false,
-    inputs: [
-      {
-        indexed: true,
-        internalType: "address",
-        name: "sender",
-        type: "address",
-      },
-      {
-        indexed: true,
-        internalType: "address",
-        name: "token",
-        type: "address",
-      },
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "value",
-        type: "uint256",
-      },
-      {
-        indexed: true,
-        internalType: "uint256",
-        name: "author",
-        type: "uint256",
-      },
-    ],
-    name: "Donate",
-    type: "event",
   },
   {
     anonymous: false,
@@ -966,11 +935,13 @@ export const SUBSCRIPTIONS_ABI = [
       { internalType: "uint256", name: "author", type: "uint256" },
       { internalType: "uint256", name: "subscriptionId", type: "uint256" },
     ],
-    name: "getPaymentSubscriptionsByAuthorInEth",
+    name: "getPaymentSubscriptionsByAuthor",
     outputs: [
       {
         components: [
+          { internalType: "address", name: "tokenAddress", type: "address" },
           { internalType: "uint256", name: "amount", type: "uint256" },
+          { internalType: "uint256", name: "amountInEth", type: "uint256" },
           { internalType: "uint256", name: "paymentTime", type: "uint256" },
         ],
         internalType: "struct Subscriptions.Payment[]",
@@ -991,6 +962,13 @@ export const SUBSCRIPTIONS_ABI = [
       { internalType: "uint256", name: "active", type: "uint256" },
       { internalType: "uint256", name: "cancelled", type: "uint256" },
     ],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [{ internalType: "bytes32", name: "hexName", type: "bytes32" }],
+    name: "getSubscriptionIndexByHexName",
+    outputs: [{ internalType: "uint256[2]", name: "", type: "uint256[2]" }],
     stateMutability: "view",
     type: "function",
   },
@@ -1021,12 +999,16 @@ export const SUBSCRIPTIONS_ABI = [
   },
   {
     inputs: [
+      { internalType: "address", name: "tokenAddress", type: "address" },
       { internalType: "uint256", name: "author", type: "uint256" },
       { internalType: "uint256", name: "subscriptionId", type: "uint256" },
       { internalType: "uint256", name: "periods", type: "uint256" },
     ],
     name: "getTotalPaymentAmountForPeriod",
-    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+    outputs: [
+      { internalType: "uint256", name: "amount", type: "uint256" },
+      { internalType: "uint256", name: "amountInEth", type: "uint256" },
+    ],
     stateMutability: "view",
     type: "function",
   },
@@ -1059,17 +1041,6 @@ export const SUBSCRIPTIONS_ABI = [
     inputs: [
       { internalType: "uint256", name: "", type: "uint256" },
       { internalType: "uint256", name: "", type: "uint256" },
-      { internalType: "address", name: "", type: "address" },
-    ],
-    name: "participantVotedTime",
-    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [
-      { internalType: "uint256", name: "", type: "uint256" },
-      { internalType: "uint256", name: "", type: "uint256" },
       { internalType: "uint256", name: "", type: "uint256" },
     ],
     name: "participantsSubscriptionsByAuthor",
@@ -1086,9 +1057,11 @@ export const SUBSCRIPTIONS_ABI = [
       { internalType: "uint256", name: "", type: "uint256" },
       { internalType: "uint256", name: "", type: "uint256" },
     ],
-    name: "paymentSubscriptionsByAuthorInEth",
+    name: "paymentSubscriptionsByAuthor",
     outputs: [
+      { internalType: "address", name: "tokenAddress", type: "address" },
       { internalType: "uint256", name: "amount", type: "uint256" },
+      { internalType: "uint256", name: "amountInEth", type: "uint256" },
       { internalType: "uint256", name: "paymentTime", type: "uint256" },
     ],
     stateMutability: "view",
@@ -1136,8 +1109,7 @@ export const SUBSCRIPTIONS_ABI = [
     inputs: [
       { internalType: "uint256", name: "author", type: "uint256" },
       { internalType: "uint256", name: "subscriptionId", type: "uint256" },
-      { internalType: "address[]", name: "tokenAddresses", type: "address[]" },
-      { internalType: "uint256", name: "price", type: "uint256" },
+      { internalType: "uint256", name: "paymetnPeriod", type: "uint256" },
     ],
     name: "setNewPaymetnPeriod",
     outputs: [],
@@ -1148,11 +1120,22 @@ export const SUBSCRIPTIONS_ABI = [
     inputs: [
       { internalType: "uint256", name: "author", type: "uint256" },
       { internalType: "uint256", name: "subscriptionId", type: "uint256" },
-      { internalType: "uint256", name: "paymetnPeriod", type: "uint256" },
+      { internalType: "address[]", name: "tokenAddresses", type: "address[]" },
+      { internalType: "uint256", name: "price", type: "uint256" },
     ],
     name: "setNewTokensAndPrice",
     outputs: [],
     stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [
+      { internalType: "bytes32", name: "", type: "bytes32" },
+      { internalType: "uint256", name: "", type: "uint256" },
+    ],
+    name: "subscriptionIndexByHexName",
+    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+    stateMutability: "view",
     type: "function",
   },
   {
