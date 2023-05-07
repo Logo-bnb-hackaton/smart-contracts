@@ -74,13 +74,11 @@ async function createNewSubscriptionByToken(
 
 // Возвращает необходимую сумму оплаты подписки в указанных токенах
 async function getTotalPaymentAmountForPeriod(
-  tokenAddress,
   author,
   subscriptionId,
   periods
 ) {
   const amounts = await subscriptionsContract.getTotalPaymentAmountForPeriod(
-    tokenAddress,
     author,
     subscriptionId,
     periods
@@ -99,7 +97,6 @@ async function subscriptionPayment(
   periods
 ) {
   const amounts = await getTotalPaymentAmountForPeriod(
-    tokenAddress,
     author,
     subscriptionId,
     periods
@@ -159,8 +156,12 @@ function generateNewHash(someString) {
 }
 
 async function main() {
-  const timestamp = Date.now();
-  const hexName = generateNewHash(timestamp.toString());
+  //   const timestamp = Date.now();
+  //   const index = generateNewHash(timestamp.toString());
+  const id = 1234;
+  const hexId = ethers.utils.hexZeroPad(ethers.utils.hexlify(id), 32);
+  const idValue = ethers.BigNumber.from(hexId).toNumber();
+
   const author = 1;
   const isRegularSubscription = false;
   const paymetnPeriod = 14400;
@@ -179,7 +180,7 @@ async function main() {
 
   /** Создание подписки в нативной монете
   await createNewSubscriptionByEth(
-    hexName,
+    hexId,
     author,
     isRegularSubscription,
     paymetnPeriod,
@@ -190,7 +191,7 @@ async function main() {
 
   /** Создание подписки в токене
   await createNewSubscriptionByToken(
-    hexName,
+    hexId,
     author,
     isRegularSubscription,
     paymetnPeriod,

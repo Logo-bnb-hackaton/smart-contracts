@@ -20,6 +20,8 @@ contract MainNFT is ERC721Enumerable, IERC2981, Ownable, ReentrancyGuard {
     string public baseURI;
     mapping (uint256 => uint256) public authorsAmounts;
     mapping (address => bool) public verifiedContracts;
+
+    address uniswapRouterAddress;
     IUniswapV2Router02 public uniswapRouter;
 
     mapping(uint256 => address) public managers;
@@ -46,7 +48,7 @@ contract MainNFT is ERC721Enumerable, IERC2981, Ownable, ReentrancyGuard {
         _;
     }
 
-    constructor(address _uniswapRouterAddress, uint8 _levelsCount, string memory _baseURI) ERC721("SocialFi", "SoFi") {
+    constructor(address _uniswapRouterAddress, uint8 _levelsCount, string memory _baseURI) ERC721("SocialFi by 0xc0de", "SoFi") {
         levels = _levelsCount;
         baseURI = _baseURI;
         setNewRouter(_uniswapRouterAddress);
@@ -118,6 +120,10 @@ contract MainNFT is ERC721Enumerable, IERC2981, Ownable, ReentrancyGuard {
             return 0;
         }
     }
+
+    function getUniswapRouterAddress() public view returns (address){
+        return uniswapRouterAddress;
+    }    
     /***************Common interfaces END***************/
 
     /***************Author options BGN***************/
@@ -154,7 +160,8 @@ contract MainNFT is ERC721Enumerable, IERC2981, Ownable, ReentrancyGuard {
     }
 
     function setNewRouter(address _uniswapRouterAddress) public onlyOwner isContract(_uniswapRouterAddress) {
-        uniswapRouter = IUniswapV2Router02(_uniswapRouterAddress);
+        uniswapRouterAddress = _uniswapRouterAddress;
+        uniswapRouter = IUniswapV2Router02(uniswapRouterAddress);
     }
 
     function setVerfiedContracts(bool isVerified, address _address) public {
@@ -184,8 +191,7 @@ contract MainNFT is ERC721Enumerable, IERC2981, Ownable, ReentrancyGuard {
 
     function withdrawTokens(address _address) external onlyOwner nonReentrant {
         IERC20 token = IERC20(_address);
-        uint256 tokenBalance = token.balanceOf(address(this));
-        uint256 amount = tokenBalance;
+        uint256 amount = token.balanceOf(address(this));
         token.transfer(_msgSender(), amount);
     }
     /***************Only for owner END**************/

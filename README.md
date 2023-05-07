@@ -49,3 +49,21 @@ https://testnet.bscscan.com/address/0xe56e5FD2D7aeAde39B04EFb41992a233948D304e#c
 Eventf.sol: 0xe0f49A0ef3371B46F72ffd996E992F256ABA5b8C
 
 https://testnet.bscscan.com/address/0xe0f49A0ef3371B46F72ffd996E992F256ABA5b8C#code
+
+## Other information
+
+uniswapRouterAddress in BSC testnet: 0xD99D1c33F9fC3444f8101754aBC46c52416550D1
+
+uniswapRouterAddress in Mainnet Eth: 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D
+
+uniswap v3 on BSC mainnet: 0x5Dc88340E1c5c6366864Ee415d6034cadd1A9897
+
+levelsCount: 5
+
+baseURI: ipfs://QmSPdJyCiJCbJ2sWnomh6gHqkT2w1FSnp7ZnXxk3itvc14/
+
+Tether USD (USDT) on BSC testnet: 0x5eAD2D2FA49925dbcd6dE99A573cDA494E3689be
+
+USD Coin (USDC) on BSC testnet: 0x953b8279d8Eb26c42d33bA1Aca130d853cb941C8
+
+BUSD on BSC testnet: 0xaB1a4d4f1D656d2450692D237fdD6C7f9146e814

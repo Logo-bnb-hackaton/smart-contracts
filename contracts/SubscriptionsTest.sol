@@ -9,7 +9,6 @@ import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
 interface IMainNFT {
     function getUniswapRouterAddress() external view returns (address);
     function ownerOf(uint256) external view returns (address);
-    function owner() external view returns (address);
     function onlyAuthor(address, uint256) external pure returns (bool);
     function isAddressExist(address, address[] memory) external pure returns (bool);
     function contractFeeForAuthor(uint256, uint256) external view returns(uint256);
@@ -38,7 +37,7 @@ contract SubscriptionsTest is ReentrancyGuard {
     }
 
     struct Subscription{
-        bytes32 hexId;
+        bytes32 hexName;
         bool isActive;
         bool isRegularSubscription;
         uint256 paymetnPeriod;
@@ -51,20 +50,19 @@ contract SubscriptionsTest is ReentrancyGuard {
         uint256 subscriptionEndTime;
     }
 
-    mapping(address => bool) public approvedTokensForSwap;
     mapping(uint256 => mapping(address => bool)) public blackListByAuthor;
     mapping(uint256 => Subscription[]) public subscriptionsByAuthor;
     mapping(uint256 => mapping(uint256 => Discount[])) public discountSubscriptionsByAuthor;
     mapping(uint256 => mapping(uint256 => Participant[])) public participantsSubscriptionsByAuthor;
     mapping(uint256 => mapping(uint256 => mapping(address => uint256))) public participantIndex;
-    mapping(bytes32 => uint256[2]) public subscriptionIndexByHexId;
+    mapping(bytes32 => uint256[2]) public subscriptionIndexByHexName;
     
     mapping(uint256 => mapping(uint256 => Payment[])) public paymentSubscriptionsByAuthor;
     mapping(uint256 => mapping(uint256 => uint256)) public totalPaymentSubscriptionsByAuthoInEth;
 
     event Received(address indexed sender, uint256 value);
-    event NewOneTimeSubscriptionCreated(uint256 indexed author, bytes32 indexed hexId, address tokenAddress, uint256 price, Discount[] discounts);
-    event NewRegularSubscriptionCreated(uint256 indexed author, bytes32 indexed hexId, address tokenAddress, uint256 price, uint256 paymetnPeriod, Discount[] discounts);
+    event NewOneTimeSubscriptionCreated(uint256 indexed author, bytes32 indexed hexName, address tokenAddress, uint256 price, Discount[] discounts);
+    event NewRegularSubscriptionCreated(uint256 indexed author, bytes32 indexed hexName, address tokenAddress, uint256 price, uint256 paymetnPeriod, Discount[] discounts);
     event NewSubscription(address indexed participant, uint256 indexed author, uint256 indexed subscriptionIndex, uint256 subscriptionEndTime, address tokenAddress, uint256 amount);
 
     modifier onlyAuthor(uint256 author) {
@@ -85,17 +83,8 @@ contract SubscriptionsTest is ReentrancyGuard {
         _;
     }
 
-    constructor(address mainNFTAddress, address[] memory tokensForSwap) {
-        mainNFT = IMainNFT(mainNFTAddress);
-        mainNFT.setVerfiedContracts(true, address(this));
-
-        address _uniswapRouterAddress = mainNFT.getUniswapRouterAddress();
-        uniswapRouter = IUniswapV2Router02(_uniswapRouterAddress);
-
-        approveCustomTokenForSwap(uniswapRouter.WETH());
-        for (uint256 i = 0; i < tokensForSwap.length; i++){
-            approveCustomTokenForSwap(tokensForSwap[i]);
-        }
+    constructor(address mainNFTAddress) {
+        setIMainNFT(mainNFTAddress);
     }
 
     /***************Author options BGN***************/
@@ -108,31 +97,31 @@ contract SubscriptionsTest is ReentrancyGuard {
     }
 
     function createNewSubscriptionByEth(
-        bytes32 hexId,
+        bytes32 hexName,
         uint256 author,
         bool isRegularSubscription,
         uint256 paymetnPeriod,
         uint256 price,
         Discount[] memory discountProgramm) public onlyAuthor(author){
-            createNewSubscriptionByToken(hexId, author, isRegularSubscription, paymetnPeriod, address(0), price, discountProgramm);
+            createNewSubscriptionByToken(hexName, author, isRegularSubscription, paymetnPeriod, address(0), price, discountProgramm);
     }
 
     function createNewSubscriptionByToken(
-        bytes32 hexId,
+        bytes32 hexName,
         uint256 author,
         bool isRegularSubscription,
         uint256 paymetnPeriod,
         address tokenAddress,
         uint256 price,
         Discount[] memory discountProgramm) public onlyAuthor(author){
-            uint256[2] memory arrayHexId = subscriptionIndexByHexId[hexId];
-            require(_efficientHash(bytes32(arrayHexId[0]), bytes32(arrayHexId[1])) == _efficientHash(bytes32(0), bytes32(0)),"Specified hexId is already in use");
+            uint256[2] memory nameHaxIndex = subscriptionIndexByHexName[hexName];
+            require(_efficientHash(bytes32(nameHaxIndex[0]), bytes32(nameHaxIndex[1])) == _efficientHash(bytes32(0), bytes32(0)),"Specified haxName is already in use");
             require(tokenAddress == address(0) && price >= 10**6 || price > 0, "Low price");
             require(!isRegularSubscription || paymetnPeriod >= 4 hours, "Payment period cannot be less than 4 hours for regular subscription");
             require(tokenAddress == address(0) || mainNFT.converTokenPriceToEth(tokenAddress, 10**24) > 0, "It is not possible to accept payment");
 
             uint256 len = subscriptionsByAuthor[author].length;
-            subscriptionIndexByHexId[hexId] = [author, len];
+            subscriptionIndexByHexName[hexName] = [author, len];
             for (uint256 i = 0; i < discountProgramm.length; i++){
                 require(discountProgramm[i].amountAsPPM <= 1000, "Error in discount programm");
                 discountSubscriptionsByAuthor[author][len].push(discountProgramm[i]);
@@ -142,7 +131,7 @@ contract SubscriptionsTest is ReentrancyGuard {
             participantsSubscriptionsByAuthor[author][len].push(Participant(address(this), type(uint256).max));
 
             Subscription memory subscription = Subscription({
-                hexId: hexId,
+                hexName: hexName,
                 isActive: true,
                 isRegularSubscription: isRegularSubscription,
                 paymetnPeriod: paymetnPeriod,
@@ -152,9 +141,9 @@ contract SubscriptionsTest is ReentrancyGuard {
             subscriptionsByAuthor[author].push(subscription);
 
             if (isRegularSubscription) {
-                emit NewRegularSubscriptionCreated(author, hexId, tokenAddress, price, paymetnPeriod, discountProgramm);
+                emit NewRegularSubscriptionCreated(author, hexName, tokenAddress, price, paymetnPeriod, discountProgramm);
             } else {
-                emit NewOneTimeSubscriptionCreated(author, hexId, tokenAddress, price, discountProgramm);
+                emit NewOneTimeSubscriptionCreated(author, hexName, tokenAddress, price, discountProgramm);
             }
     }
 
@@ -235,8 +224,8 @@ contract SubscriptionsTest is ReentrancyGuard {
         amountInEth = subscription.tokenAddress != address(0) ? amountInToken : mainNFT.converTokenPriceToEth(subscription.tokenAddress, amountInToken);
     }
 
-    function getSubscriptionIndexByHexId(bytes32 hexId) public view returns (uint256[2] memory){
-        return subscriptionIndexByHexId[hexId];
+    function getSubscriptionIndexByHexName(bytes32 hexName) public view returns (uint256[2] memory){
+        return subscriptionIndexByHexName[hexName];
     }
     /***************Author options END***************/
 
@@ -255,11 +244,7 @@ contract SubscriptionsTest is ReentrancyGuard {
             _paymentEth(author, amountInToken);
         } else {
             require(msg.value == 0, "Payment in native coin is not provided for this subscription");
-            if (participantSelectedTokenAddress != subscription.tokenAddress){
-                _swapTokenAndPay(msg.sender, participantSelectedTokenAddress, subscription.tokenAddress, amountInToken, author);
-            } else {
-                _paymentToken(msg.sender, participantSelectedTokenAddress, amountInToken, author);
-            }
+            _swapTokenAndPay(msg.sender, participantSelectedTokenAddress, subscription.tokenAddress, amountInToken, author);
         }
 
         uint256 subscriptionEndTime = subscription.isRegularSubscription ?
@@ -281,60 +266,47 @@ contract SubscriptionsTest is ReentrancyGuard {
     function _paymentEth(uint256 author, uint256 value) internal nonReentrant {
         uint256 contractFee = mainNFT.contractFeeForAuthor(author, value);
         uint256 amount = value - contractFee;
-        (bool success1, ) = commissionCollector().call{value: contractFee}("");
+        (bool success1, ) = owner().call{value: contractFee}("");
         (bool success2, ) = ownerOf(author).call{value: amount}("");
         require(success1 && success2, "fail");
         mainNFT.addAuthorsRating(address(0), value, author);
     }
 
     function _swapTokenAndPay(address sender, address selectedTokenAddress, address tokenAddress, uint256 tokenAmount, uint256 author) internal {
-        require(approvedTokensForSwap[selectedTokenAddress], "The token is not approved for swap");
-        address[] memory path = new address[](0);  
-        if (selectedTokenAddress == uniswapRouter.WETH() || tokenAddress == uniswapRouter.WETH()){
-            path = new address[](2);
-            path[0] = selectedTokenAddress;
-            path[1] = tokenAddress;
-        } else {
-            path = new address[](3);
-            path[0] = selectedTokenAddress;
-            path[1] = uniswapRouter.WETH();
-            path[2] = tokenAddress;
-        }
-        uint256[] memory amounts = uniswapRouter.getAmountsIn(tokenAmount, path);
-        uint256 debitedAmount = amounts[0].mul(101).div(100);
-        require(debitedAmount > 0, "Payment fail");
+        uint256 targetAmountInEth = mainNFT.converTokenPriceToEth(selectedTokenAddress, tokenAmount.mul(101).div(100));
+        uint256 oneTokenValue = 10**18;
+        uint256 basePriceInEth = mainNFT.converTokenPriceToEth(selectedTokenAddress, oneTokenValue);
+        require(targetAmountInEth > 0 && basePriceInEth > 0, "Payment fail");
+        uint256 baseAmount = (oneTokenValue.mul(101).div(100)).mul(targetAmountInEth).div(basePriceInEth);
 
-        IERC20 selectedToken = IERC20(selectedTokenAddress);
-        selectedToken.transferFrom(sender, address(this), debitedAmount);
-        uniswapRouter.swapTokensForExactTokens(tokenAmount, debitedAmount, path, address(this), (block.timestamp).add(3600));
+        IERC20 token = IERC20(selectedTokenAddress);
+        token.transferFrom(sender, address(this), baseAmount);
 
-        _paymentTokenFromContract(tokenAddress, tokenAmount, author);
-        _withdrawTokens(selectedTokenAddress);
+        address[] memory pathBase = new address[](2);
+        pathBase[0] = selectedTokenAddress;
+        pathBase[1] = uniswapRouter.WETH();
+        uniswapRouter.swapTokensForExactTokens(targetAmountInEth, baseAmount, pathBase, address(this), block.timestamp.add(3600));
 
-        selectedToken.approve(address(uniswapRouter), type(uint256).max);
+        address[] memory pathTarget = new address[](2);
+        pathTarget[0] = uniswapRouter.WETH();
+        pathTarget[1] = tokenAddress;
+        uniswapRouter.swapTokensForExactTokens(tokenAmount, targetAmountInEth, pathTarget, address(this), block.timestamp.add(3600));
+
+        _paymentToken(address(this), tokenAddress, tokenAmount, author);
     }
 
     function _paymentToken(address sender, address tokenAddress, uint256 tokenAmount, uint256 author) internal nonReentrant {
         IERC20 token = IERC20(tokenAddress);
         uint256 contractFee = mainNFT.contractFeeForAuthor(author, tokenAmount);
-        token.transferFrom(sender, commissionCollector(), contractFee);
-        uint256 amount = tokenAmount.sub(contractFee);
+        token.transferFrom(sender, owner(), contractFee);
+        uint256 amount = tokenAmount - contractFee;
         token.transferFrom(sender, ownerOf(author), amount);
-        mainNFT.addAuthorsRating(tokenAddress, tokenAmount, author);
-    }
-
-    function _paymentTokenFromContract(address tokenAddress, uint256 tokenAmount, uint256 author) internal nonReentrant {
-        IERC20 token = IERC20(tokenAddress);
-        uint256 contractFee = mainNFT.contractFeeForAuthor(author, tokenAmount);
-        token.transfer(commissionCollector(), contractFee);
-        uint256 amount = tokenAmount.sub(contractFee);
-        token.transfer(ownerOf(author), amount);
         mainNFT.addAuthorsRating(tokenAddress, tokenAmount, author);
     }
     /***************User interfaces END***************/
 
     /***************Support BGN***************/
-    function _efficientHash(bytes32 a, bytes32 b) internal pure returns (bytes32 value) {
+    function _efficientHash(bytes32 a, bytes32 b) private pure returns (bytes32 value) {
         /// @solidity memory-safe-assembly
         assembly {
             mstore(0x00, a)
@@ -344,10 +316,6 @@ contract SubscriptionsTest is ReentrancyGuard {
     }
 
     function owner() public view returns(address){
-        return mainNFT.owner();
-    }
-
-    function commissionCollector() public view returns(address){
         return mainNFT.commissionCollector();
     }
 
@@ -355,18 +323,11 @@ contract SubscriptionsTest is ReentrancyGuard {
         return mainNFT.ownerOf(author);
     }
 
-    function _setNewRouter(address _uniswapRouterAddress) internal onlyOwner{
+    function _setNewRouter(address _uniswapRouterAddress) internal onlyOwner {
         uniswapRouter = IUniswapV2Router02(_uniswapRouterAddress);
     }
 
-    function approveCustomTokenForSwap(address tokenAddress) public{
-        require(mainNFT.converTokenPriceToEth(tokenAddress, 10**18) > 0, "Token is not available to swap, it is not supported by DEX");
-        IERC20 token = IERC20(tokenAddress);
-        token.approve(address(uniswapRouter), type(uint256).max);
-        approvedTokensForSwap[tokenAddress] = true;
-    }
-
-    function setIMainNFT(address mainNFTAddress) external onlyOwner{
+    function setIMainNFT(address mainNFTAddress) public onlyOwner{
         mainNFT = IMainNFT(mainNFTAddress);
         mainNFT.setVerfiedContracts(true, address(this));
         _setNewRouter(mainNFT.getUniswapRouterAddress());
@@ -374,23 +335,20 @@ contract SubscriptionsTest is ReentrancyGuard {
 
     function withdraw() external onlyOwner nonReentrant {
         uint256 amount = address(this).balance;
-        (bool success, ) = commissionCollector().call{value: amount}("");
+        (bool success, ) = owner().call{value: amount}("");
         require(success, "fail");
     }
 
-    function _withdrawTokens(address _address) internal {
+    function withdrawTokens(address _address) external onlyOwner nonReentrant {
         IERC20 token = IERC20(_address);
-        uint256 amount = token.balanceOf(address(this));
-        token.transfer(commissionCollector(), amount);
-    }
-
-    function withdrawTokens(address _address) public onlyOwner nonReentrant {
-        _withdrawTokens(_address);
+        uint256 tokenBalance = token.balanceOf(address(this));
+        uint256 amount = tokenBalance;
+        token.transfer(owner(), amount);
     }
     /***************Support END**************/
 
     receive() external payable {
-        (bool success, ) = commissionCollector().call{value: msg.value}("");
+        (bool success, ) = owner().call{value: msg.value}("");
         require(success, "fail");
         emit Received(msg.sender, msg.value);
     }

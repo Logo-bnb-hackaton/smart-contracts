@@ -6,7 +6,9 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 
 interface IMainNFT {
+    function getUniswapRouterAddress() external view returns (address);
     function ownerOf(uint256) external view returns (address);
+    function owner() external view returns (address);
     function onlyAuthor(address, uint256) external pure returns (bool);
     function isAddressExist(address, address[] memory) external pure returns (bool);
     function contractFeeForAuthor(uint256, uint256) external view returns(uint256);
@@ -76,7 +78,7 @@ contract PublicDonation is  ReentrancyGuard {
     function paymentEth(uint256 author, uint256 value) internal nonReentrant {
         uint256 contractFee = mainNFT.contractFeeForAuthor(author, value);
         uint256 amount = value - contractFee;
-        (bool success1, ) = owner().call{value: contractFee}("");
+        (bool success1, ) = commissionCollector().call{value: contractFee}("");
         (bool success2, ) = ownerOf(author).call{value: amount}("");
         require(success1 && success2, "fail");
         mainNFT.addAuthorsRating(address(0), value, author);
@@ -88,7 +90,7 @@ contract PublicDonation is  ReentrancyGuard {
 
         IERC20 token = IERC20(tokenAddress);
         uint256 contractFee = mainNFT.contractFeeForAuthor(author, tokenAmount);
-        token.transferFrom(sender, owner(), contractFee);
+        token.transferFrom(sender, commissionCollector(), contractFee);
         uint256 amount = tokenAmount - contractFee;
         token.transferFrom(sender, ownerOf(author), amount);
         mainNFT.addAuthorsRating(tokenAddress, tokenAmount, author);
@@ -109,6 +111,10 @@ contract PublicDonation is  ReentrancyGuard {
 
     /***************Support BGN***************/
     function owner() public view returns(address){
+        return mainNFT.owner();
+    }
+
+    function commissionCollector() public view returns(address){
         return mainNFT.commissionCollector();
     }
 
@@ -122,20 +128,19 @@ contract PublicDonation is  ReentrancyGuard {
 
     function withdraw() external onlyOwner nonReentrant {
         uint256 amount = address(this).balance;
-        (bool success, ) = owner().call{value: amount}("");
+        (bool success, ) = commissionCollector().call{value: amount}("");
         require(success, "fail");
     }
 
     function withdrawTokens(address _address) external onlyOwner nonReentrant {
         IERC20 token = IERC20(_address);
-        uint256 tokenBalance = token.balanceOf(address(this));
-        uint256 amount = tokenBalance;
-        token.transfer(owner(), amount);
+        uint256 amount = token.balanceOf(address(this));
+        token.transfer(commissionCollector(), amount);
     }
     /***************Support END**************/
 
     receive() external payable {
-        (bool success, ) = owner().call{value: msg.value}("");
+        (bool success, ) = commissionCollector().call{value: msg.value}("");
         require(success, "fail");
         emit Received(msg.sender, msg.value);
     }
