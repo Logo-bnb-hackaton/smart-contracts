@@ -7,7 +7,7 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
-import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
+import "./Interfaces/IUniswapV3Helper.sol";
 
 contract MainNFT is ERC721Enumerable, IERC2981, Ownable, ReentrancyGuard {
     using SafeMath for uint256;
@@ -21,8 +21,8 @@ contract MainNFT is ERC721Enumerable, IERC2981, Ownable, ReentrancyGuard {
     mapping (uint256 => uint256) public authorsAmounts;
     mapping (address => bool) public verifiedContracts;
 
-    address uniswapRouterAddress;
-    IUniswapV2Router02 public uniswapRouter;
+    address uniswapHelperAddress;
+    IUniswapV3Helper public uniswapHelper;
 
     mapping(uint256 => address) public managers;
 
@@ -48,10 +48,12 @@ contract MainNFT is ERC721Enumerable, IERC2981, Ownable, ReentrancyGuard {
         _;
     }
 
-    constructor(address _uniswapRouterAddress, uint8 _levelsCount, string memory _baseURI) ERC721("SocialFi by 0xc0de", "SoFi") {
+    constructor(address _uniswapHelperAddress, uint8 _levelsCount, string memory _baseURI) ERC721("SocialFi", "SoFi") {
         levels = _levelsCount;
         baseURI = _baseURI;
-        setNewRouter(_uniswapRouterAddress);
+        setNewHelper(_uniswapHelperAddress);
+        _safeMint(address(this), 0);
+        _addAuthorsRating(10**18, 0);
     }
 
     /***************Common interfaces BGN***************/
@@ -71,7 +73,7 @@ contract MainNFT is ERC721Enumerable, IERC2981, Ownable, ReentrancyGuard {
         _requireMinted(tokenId);
         uint256 thisLevel = (10 ** levels) * authorsAmounts[tokenId] / totalAmounts;
         uint256 uriNumber = myLog10(thisLevel);
-        if (uriNumber >= levels){
+        if (uriNumber >= levels || tokenId == 0){
             uriNumber = levels - 1;
         }
         return
@@ -107,22 +109,19 @@ contract MainNFT is ERC721Enumerable, IERC2981, Ownable, ReentrancyGuard {
     }    
 
     function converTokenPriceToEth(address tokenAddress, uint256 tokenAmount) public view returns (uint256) {
-        address[] memory path = new address[](2);
-        path[0] = tokenAddress;
-        try uniswapRouter.WETH() returns(address wethAddress) {
-            path[1] = wethAddress;
-        } catch (bytes memory) {
-            return 0;
+        if (tokenAddress == address(0)) {
+            return tokenAmount;
         }
-        try uniswapRouter.getAmountsOut(tokenAmount, path) returns(uint256[] memory amountsOut){
-            return amountsOut[1];
+
+        try uniswapHelper.convertAmountToETH(tokenAddress, tokenAmount) returns(uint256 amountOut) {
+            return amountOut;
         } catch (bytes memory) {
             return 0;
         }
     }
 
-    function getUniswapRouterAddress() public view returns (address){
-        return uniswapRouterAddress;
+    function getUniswapHelperAddress() public view returns (address){
+        return uniswapHelperAddress;
     }    
     /***************Common interfaces END***************/
 
@@ -133,8 +132,9 @@ contract MainNFT is ERC721Enumerable, IERC2981, Ownable, ReentrancyGuard {
     }
 
     function _addAuthorsRating(uint256 value, uint256 author) private {
-        totalAmounts += value;
-        authorsAmounts[author] += value;
+        uint256 _readyValue = block.timestamp.div(3_600).mul(value);
+        totalAmounts += _readyValue;
+        authorsAmounts[author] += _readyValue;
     }
 
     function setManager(address newManager, uint256 author) public {
@@ -159,9 +159,9 @@ contract MainNFT is ERC721Enumerable, IERC2981, Ownable, ReentrancyGuard {
         publicSaleTokenPrice = _newPrice;
     }
 
-    function setNewRouter(address _uniswapRouterAddress) public onlyOwner isContract(_uniswapRouterAddress) {
-        uniswapRouterAddress = _uniswapRouterAddress;
-        uniswapRouter = IUniswapV2Router02(uniswapRouterAddress);
+    function setNewHelper(address _uniswapHelperAddress) public onlyOwner isContract(_uniswapHelperAddress) {
+        uniswapHelperAddress = _uniswapHelperAddress;
+        uniswapHelper = IUniswapV3Helper(_uniswapHelperAddress);
     }
 
     function setVerfiedContracts(bool isVerified, address _address) public {

@@ -4,22 +4,12 @@ pragma solidity ^0.8.18;
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
-
-interface IMainNFT {
-    function getUniswapRouterAddress() external view returns (address);
-    function ownerOf(uint256) external view returns (address);
-    function owner() external view returns (address);
-    function onlyAuthor(address, uint256) external pure returns (bool);
-    function isAddressExist(address, address[] memory) external pure returns (bool);
-    function contractFeeForAuthor(uint256, uint256) external view returns(uint256);
-    function commissionCollector() external view returns (address);
-    function addAuthorsRating(address, uint256, uint256) external;
-    function setVerfiedContracts(bool, address) external;
-}
+import "@uniswap/v3-periphery/contracts/libraries/TransferHelper.sol";
+import "./Interfaces/IMainNFT.sol";
+import "./Interfaces/IUniswapV3Helper.sol";
 
 contract PublicDonation is  ReentrancyGuard {
     using SafeMath for uint256;
-
     IMainNFT mainNFT;
 
     mapping(uint256 => address[]) donateTokenAddressesByAuthor;
@@ -77,10 +67,9 @@ contract PublicDonation is  ReentrancyGuard {
 
     function paymentEth(uint256 author, uint256 value) internal nonReentrant {
         uint256 contractFee = mainNFT.contractFeeForAuthor(author, value);
+        TransferHelper.safeTransferETH(commissionCollector(), contractFee);
         uint256 amount = value - contractFee;
-        (bool success1, ) = commissionCollector().call{value: contractFee}("");
-        (bool success2, ) = ownerOf(author).call{value: amount}("");
-        require(success1 && success2, "fail");
+        TransferHelper.safeTransferETH(ownerOf(author), amount);
         mainNFT.addAuthorsRating(address(0), value, author);
     }
 
@@ -88,23 +77,37 @@ contract PublicDonation is  ReentrancyGuard {
         address[] memory tokensByAuthor = donateTokenAddressesByAuthor[author];
         require(mainNFT.isAddressExist(tokenAddress, tokensByAuthor), "Token not exist");
 
-        IERC20 token = IERC20(tokenAddress);
         uint256 contractFee = mainNFT.contractFeeForAuthor(author, tokenAmount);
-        token.transferFrom(sender, commissionCollector(), contractFee);
+        TransferHelper.safeTransferFrom(tokenAddress, sender, commissionCollector(), contractFee);
         uint256 amount = tokenAmount - contractFee;
-        token.transferFrom(sender, ownerOf(author), amount);
+        TransferHelper.safeTransferFrom(tokenAddress, sender, commissionCollector(), amount);
         mainNFT.addAuthorsRating(tokenAddress, tokenAmount, author);
     }
 
-    function donateEth(uint256 author) public payable{        
+    function donateEth(uint256 author) public payable {        
         require(msg.value >= 10**6, "Low value");
         paymentEth(author, msg.value);
         emit Donate(msg.sender, address(0), msg.value, author);
     }
 
-    function donateToken(address tokenAddress, uint256 tokenAmount, uint256 author) public{
+    function donateToken(address tokenAddress, uint256 tokenAmount, uint256 author) public {
         require(tokenAmount > 0, "Low value");
         paymentToken(msg.sender, tokenAddress, tokenAmount, author);
+        emit Donate(msg.sender, tokenAddress, tokenAmount, author);
+    }
+
+    function donateFromSwap(address tokenAddress, uint256 tokenAmount, uint256 author) public {
+        require(tokenAmount > 0, "Low value");
+        address[] memory tokensByAuthor = donateTokenAddressesByAuthor[author];
+        if (mainNFT.isAddressExist(tokenAddress, tokensByAuthor)) {
+            paymentToken(msg.sender, tokenAddress, tokenAmount, author);
+        } else {            
+            TransferHelper.safeTransferFrom(tokenAddress, msg.sender, address(this), tokenAmount);
+            TransferHelper.safeApprove(tokenAddress, mainNFT.getUniswapHelperAddress(), type(uint256).max);
+            IUniswapV3Helper uniswapV3Helper = IUniswapV3Helper(mainNFT.getUniswapHelperAddress());
+            uint256 amountOut = uniswapV3Helper.swapExactInputToETH(tokenAddress, tokenAmount);
+            paymentEth(author, amountOut);
+        }
         emit Donate(msg.sender, tokenAddress, tokenAmount, author);
     }
     /***************User interfaces END***************/
@@ -128,20 +131,16 @@ contract PublicDonation is  ReentrancyGuard {
 
     function withdraw() external onlyOwner nonReentrant {
         uint256 amount = address(this).balance;
-        (bool success, ) = commissionCollector().call{value: amount}("");
-        require(success, "fail");
+        TransferHelper.safeTransferETH(commissionCollector(), amount);
     }
 
     function withdrawTokens(address _address) external onlyOwner nonReentrant {
-        IERC20 token = IERC20(_address);
-        uint256 amount = token.balanceOf(address(this));
-        token.transfer(commissionCollector(), amount);
+        uint256 amount = IERC20(_address).balanceOf(address(this));
+        TransferHelper.safeTransfer(_address, commissionCollector(), amount);
     }
     /***************Support END**************/
 
     receive() external payable {
-        (bool success, ) = commissionCollector().call{value: msg.value}("");
-        require(success, "fail");
         emit Received(msg.sender, msg.value);
     }
 }

@@ -4,18 +4,8 @@ pragma solidity ^0.8.18;
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
-
-interface IMainNFT {
-    function getUniswapRouterAddress() external view returns (address);
-    function ownerOf(uint256) external view returns (address);
-    function owner() external view returns (address);
-    function onlyAuthor(address, uint256) external pure returns (bool);
-    function isAddressExist(address, address[] memory) external pure returns (bool);
-    function contractFeeForAuthor(uint256, uint256) external view returns(uint256);
-    function commissionCollector() external view returns (address);
-    function addAuthorsRating(address, uint256, uint256) external;
-    function setVerfiedContracts(bool, address) external;
-}
+import "./Interfaces/IMainNFT.sol";
+import "./Interfaces/IUniswapV3Helper.sol";
 
 contract Events is ReentrancyGuard {
     using SafeMath for uint256;

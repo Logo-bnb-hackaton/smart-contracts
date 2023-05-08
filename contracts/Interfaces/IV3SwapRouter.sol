@@ -66,4 +66,6 @@ interface IV3SwapRouter is IPancakeV3SwapCallback {
     /// @param params The parameters necessary for the multi-hop swap, encoded as `ExactOutputParams` in calldata
     /// @return amountIn The amount of the input token
     function exactOutput(ExactOutputParams calldata params) external payable returns (uint256 amountIn);
+
+    function WETH9() external view returns (address);
 }

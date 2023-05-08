@@ -30,7 +30,7 @@ npx hardhat test
 npx hardhat run scripts/deploy.js --network bnb_testnet
 ```
 
-## Contracts
+## Contracts (edited)
 
 owner address: 0xc0DE5BCbE4dd5A6E1F7C827B898330d69CcEF216
 
@@ -51,10 +51,6 @@ Eventf.sol: 0xe0f49A0ef3371B46F72ffd996E992F256ABA5b8C
 https://testnet.bscscan.com/address/0xe0f49A0ef3371B46F72ffd996E992F256ABA5b8C#code
 
 ## Other information
-
-uniswapRouterAddress in BSC testnet: 0xD99D1c33F9fC3444f8101754aBC46c52416550D1
-
-uniswapRouterAddress in Mainnet Eth: 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D
 
 uniswap v3 on BSC mainnet: 0x5Dc88340E1c5c6366864Ee415d6034cadd1A9897
 
@@ -77,3 +73,5 @@ PancakeSmartRouter: 0x9a489505a00cE272eAa5e07Dba6491314CaE3796
 WET9: 0xae13d989dac2f0debff460ac112a837c89baa7cd
 
 Liquidity of Pancake: [100,500,2500,10000]
+
+##
