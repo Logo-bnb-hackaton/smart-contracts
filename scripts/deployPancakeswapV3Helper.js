@@ -3,18 +3,16 @@ const hre = require("hardhat");
 async function main() {
   const [owner] = await ethers.getSigners();
 
-  const Name = "MainNFT";
+  const Name = "PancakeswapV3Helper";
   const Contract = await hre.ethers.getContractFactory(Name);
 
-  const _uniswapHelperAddress = "0x2b08abfb5bd79c1f734b695ae9b29a7ec0a6f264";
-  const _priceFeedAddress = "0x2514895c72f50D8bd4B4F9b1110F0D6bD2c97526";
-  const _levelsCount = 5;
-  const _baseURI = "ipfs://QmSPdJyCiJCbJ2sWnomh6gHqkT2w1FSnp7ZnXxk3itvc14/";
+  const _factoryAddr = "0x0BFbCF9fa4f9C56B0F40a671Ad40E0805A091865";
+  const _swapRouterAddr = "0x9a489505a00cE272eAa5e07Dba6491314CaE3796";
+  const _poolFees = [100, 500, 2500, 10000];
   const result = await Contract.deploy(
-    _uniswapHelperAddress,
-    _priceFeedAddress,
-    _levelsCount,
-    _baseURI
+    _factoryAddr,
+    _swapRouterAddr,
+    _poolFees
   );
   await result.deployed();
 
@@ -30,13 +28,13 @@ async function main() {
 
   await run(`verify:verify`, {
     address: result.address,
-    constructorArguments: [
-      _uniswapHelperAddress,
-      _priceFeedAddress,
-      _levelsCount,
-      _baseURI,
-    ],
+    constructorArguments: [_factoryAddr, _swapRouterAddr, _poolFees],
   });
+
+  // await run(`verify:verify`, {
+  //   address: "0x2b08ABfb5bD79c1f734B695AE9b29a7Ec0a6F264",
+  //   constructorArguments: [_factoryAddr, _swapRouterAddr, _poolFees],
+  // });
 }
 
 // We recommend this pattern to be able to use async/await everywhere

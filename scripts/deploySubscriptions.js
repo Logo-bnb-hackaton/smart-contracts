@@ -6,8 +6,8 @@ async function main() {
   const Name = "Subscriptions";
   const Contract = await hre.ethers.getContractFactory(Name);
 
-  const param1 = "0xA3b157a0c84c00AA6260F3cd06cE8746541aA8aB";
-  const result = await Contract.deploy(param1);
+  const _mainNFTAddress = "0xB99AE386ffd5A1d628d6A9c362ccf56378d279e8";
+  const result = await Contract.deploy(_mainNFTAddress);
   await result.deployed();
 
   console.log(`owner address: ${owner.address}`);
@@ -22,7 +22,7 @@ async function main() {
 
   await run(`verify:verify`, {
     address: result.address,
-    constructorArguments: [param1],
+    constructorArguments: [_mainNFTAddress],
   });
 }
 

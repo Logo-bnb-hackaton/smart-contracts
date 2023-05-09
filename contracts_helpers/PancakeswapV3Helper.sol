@@ -232,7 +232,7 @@ contract PancakeswapV3Helper {
         TransferHelper.safeTransferETH(msg.sender, amountOut);
     }
     
-    /// === Support view functions ===
+    // === Support view functions ===
     function convertAmountToETH(address token, uint256 amountIn) external view returns (uint256){
         if (token == WETH9 || token == address(0)) return amountIn;
         

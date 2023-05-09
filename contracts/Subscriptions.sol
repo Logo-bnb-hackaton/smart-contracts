@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT                                                
 
-pragma solidity ^0.8.18;
+pragma solidity ^0.8.0;
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
@@ -72,8 +72,8 @@ contract Subscriptions is ReentrancyGuard {
         _;
     }
 
-    constructor(address mainNFTAddress) {
-        mainNFT = IMainNFT(mainNFTAddress);
+    constructor(address _mainNFTAddress) {
+        mainNFT = IMainNFT(_mainNFTAddress);
         mainNFT.setVerfiedContracts(true, address(this));
     }
 

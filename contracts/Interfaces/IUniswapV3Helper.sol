@@ -39,7 +39,7 @@ interface IUniswapV3Helper {
 
     function swapExactOutputToETH(address refundRecipient, address tokenIn, uint256 amountInMaximum, uint256 amountOut) external returns (uint256 amountIn);
 
-    /// === Support view functions ===
+    // === Support view functions ===
     function convertAmountToETH(address token, uint256 amountIn) external view returns (uint256);
     function getAmountInMaximum(address tokenIn, address tokenOut, uint256 amountOut) external view returns (uint256 amountInMaximum);
 }

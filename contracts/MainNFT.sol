@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT                                                
 
-pragma solidity ^0.8.18;
+pragma solidity ^0.8.0;
+import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/interfaces/IERC2981.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
@@ -13,16 +14,23 @@ contract MainNFT is ERC721Enumerable, IERC2981, Ownable, ReentrancyGuard {
     using SafeMath for uint256;
     using Strings for uint256;
 
+    uint8 constant public decimalsForUSD = 4;
+
     uint8 public levels;
     uint16 public royaltyFee = 1000;
-    uint256 public totalAmounts;
+    int256 public lastCoinPriceInUSD;
+    uint256 public totalAmountsInETH;
+    uint256 public totalAmountsInUSD;
+    uint256 public totalRating;
     uint256 publicSaleTokenPrice = 0.1 ether;
     string public baseURI;
-    mapping (uint256 => uint256) public authorsAmounts;
+    mapping (uint256 => uint256) public authorsAmountsInETH;
+    mapping (uint256 => uint256) public authorsAmountsInUSD;
+    mapping (uint256 => uint256) public authorsRating;
     mapping (address => bool) public verifiedContracts;
 
-    address uniswapHelperAddress;
     IUniswapV3Helper public uniswapHelper;
+    AggregatorV3Interface public priceFeedChainlink;
 
     mapping(uint256 => address) public managers;
 
@@ -48,10 +56,11 @@ contract MainNFT is ERC721Enumerable, IERC2981, Ownable, ReentrancyGuard {
         _;
     }
 
-    constructor(address _uniswapHelperAddress, uint8 _levelsCount, string memory _baseURI) ERC721("SocialFi", "SoFi") {
+    constructor(address _uniswapHelperAddress, address _priceFeedAddress, uint8 _levelsCount, string memory _baseURI) ERC721("SocialFi", "SoFi") {
         levels = _levelsCount;
         baseURI = _baseURI;
-        setNewHelper(_uniswapHelperAddress);
+        setNewUniswapHelper(_uniswapHelperAddress);
+        setNewPriceFeedChainlink(_priceFeedAddress);
         _safeMint(address(this), 0);
         _addAuthorsRating(10**18, 0);
     }
@@ -71,7 +80,7 @@ contract MainNFT is ERC721Enumerable, IERC2981, Ownable, ReentrancyGuard {
 
     function tokenURI(uint256 tokenId) public view virtual override returns (string memory) {
         _requireMinted(tokenId);
-        uint256 thisLevel = (10 ** levels) * authorsAmounts[tokenId] / totalAmounts;
+        uint256 thisLevel = (10 ** levels) * authorsRating[tokenId] / totalRating;
         uint256 uriNumber = myLog10(thisLevel);
         if (uriNumber >= levels || tokenId == 0){
             uriNumber = levels - 1;
@@ -118,11 +127,7 @@ contract MainNFT is ERC721Enumerable, IERC2981, Ownable, ReentrancyGuard {
         } catch (bytes memory) {
             return 0;
         }
-    }
-
-    function getUniswapHelperAddress() public view returns (address){
-        return uniswapHelperAddress;
-    }    
+    } 
     /***************Common interfaces END***************/
 
     /***************Author options BGN***************/
@@ -132,9 +137,27 @@ contract MainNFT is ERC721Enumerable, IERC2981, Ownable, ReentrancyGuard {
     }
 
     function _addAuthorsRating(uint256 value, uint256 author) private {
-        uint256 _readyValue = block.timestamp.div(3_600).mul(value);
-        totalAmounts += _readyValue;
-        authorsAmounts[author] += _readyValue;
+        totalAmountsInETH += value;
+        authorsAmountsInETH[author] += value;
+
+        uint256 rating = block.timestamp.div(3_600).mul(value);
+        totalRating += rating;
+        authorsRating[author] += rating;
+
+        (,int256 priceInUSD,,,) = priceFeedChainlink.latestRoundData();
+        if (lastCoinPriceInUSD != priceInUSD) {
+            lastCoinPriceInUSD = priceInUSD;
+        }
+        uint256 modPriceInUSD = uint256(lastCoinPriceInUSD >= 0 ? lastCoinPriceInUSD : -lastCoinPriceInUSD);
+        uint8 decimals = priceFeedChainlink.decimals();
+        uint256 valueInUSD = value.mul(modPriceInUSD).div(10**(18 - decimalsForUSD + decimals));
+        if (lastCoinPriceInUSD >= 0) {
+            totalAmountsInUSD += valueInUSD;
+            authorsAmountsInUSD[author] += valueInUSD;
+        } else if (totalAmountsInUSD > valueInUSD && authorsAmountsInUSD[author] > valueInUSD) {
+            totalAmountsInUSD -= valueInUSD;
+            authorsAmountsInUSD[author] -= valueInUSD;
+        }
     }
 
     function setManager(address newManager, uint256 author) public {
@@ -143,7 +166,7 @@ contract MainNFT is ERC721Enumerable, IERC2981, Ownable, ReentrancyGuard {
     }
 
     function contractFeeForAuthor(uint256 author, uint256 amount) public view returns(uint256){
-        uint256 thisLevel = (10 ** levels) * authorsAmounts[author] / totalAmounts;
+        uint256 thisLevel = (10 ** levels) * authorsRating[author] / totalRating;
         uint256 contractFee = amount * 2 / ( 100 * (2 ** myLog10(thisLevel)));
         return contractFee > 0 ? contractFee : 1;
     }
@@ -159,9 +182,12 @@ contract MainNFT is ERC721Enumerable, IERC2981, Ownable, ReentrancyGuard {
         publicSaleTokenPrice = _newPrice;
     }
 
-    function setNewHelper(address _uniswapHelperAddress) public onlyOwner isContract(_uniswapHelperAddress) {
-        uniswapHelperAddress = _uniswapHelperAddress;
+    function setNewUniswapHelper(address _uniswapHelperAddress) public onlyOwner isContract(_uniswapHelperAddress) {
         uniswapHelper = IUniswapV3Helper(_uniswapHelperAddress);
+    }
+
+    function setNewPriceFeedChainlink(address _priceFeedAddress) public onlyOwner isContract(_priceFeedAddress) {
+        priceFeedChainlink = AggregatorV3Interface(_priceFeedAddress);
     }
 
     function setVerfiedContracts(bool isVerified, address _address) public {

@@ -28,21 +28,43 @@ module.exports = {
     apiKey: ETHERSCAN_API_KEY,
   },
   gasReporter: {
-    enabled: true,
+    enabled: false,
     outputFile: "gasreporter.txt",
     noColors: true,
   },
   coverage: {
     exclude: ["test/", "node_modules/"],
   },
+  // solidity: {
+  //   version: "0.8.18",
+  //   settings: {
+  //     optimizer: {
+  //       enabled: true,
+  //       runs: 200,
+  //     },
+  //   },
+  // },
   solidity: {
-    version: "0.8.18",
-    settings: {
-      optimizer: {
-        enabled: true,
-        runs: 200,
+    compilers: [
+      {
+        version: "0.8.18",
+        settings: {
+          optimizer: {
+            enabled: true,
+            runs: 200,
+          },
+        },
       },
-    },
+      {
+        version: "0.7.6",
+        settings: {
+          optimizer: {
+            enabled: true,
+            runs: 200,
+          },
+        },
+      },
+    ],
   },
   contractSizer: {
     alphaSort: true,

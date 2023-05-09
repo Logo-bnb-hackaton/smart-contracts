@@ -28,6 +28,22 @@ npx hardhat
 npx hardhat test
 
 npx hardhat run scripts/deploy.js --network bnb_testnet
+
+npx hardhat clean
+
+npx hardhat compile
+```
+
+### For contracts
+
+```
+npm install @openzeppelin/contracts@4..0
+```
+
+### For helpers
+
+```
+npm install @openzeppelin/contracts@3.4.0
 ```
 
 ## Contracts (edited)
@@ -75,3 +91,31 @@ WET9: 0xae13d989dac2f0debff460ac112a837c89baa7cd
 Liquidity of Pancake: [100,500,2500,10000]
 
 ##
+
+AggregatorV3 ChainLink (\_priceFeedAddress) 0x2514895c72f50D8bd4B4F9b1110F0D6bD2c97526
+
+# New contracts on BSC TestNet:
+
+### PancakeswapV3Helper:
+
+0x2b08abfb5bd79c1f734b695ae9b29a7ec0a6f264
+
+https://testnet.bscscan.com/address/0x2b08abfb5bd79c1f734b695ae9b29a7ec0a6f264#code
+
+### Main_NFT:
+
+0xB99AE386ffd5A1d628d6A9c362ccf56378d279e8
+
+https://testnet.bscscan.com/address/0xB99AE386ffd5A1d628d6A9c362ccf56378d279e8#code
+
+### PublicDonation:
+
+0x1F143C116A4B4E4AC650BE248BE8F4d1C935Ed3C
+
+https://testnet.bscscan.com/address/0x1F143C116A4B4E4AC650BE248BE8F4d1C935Ed3C#code
+
+### Subscriptions:
+
+0xc65136CA205FbefBcB30466dD62A742a1B372327
+
+https://testnet.bscscan.com/address/0xc65136CA205FbefBcB30466dD62A742a1B372327#code
