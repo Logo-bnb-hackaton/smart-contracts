@@ -104,9 +104,9 @@ https://testnet.bscscan.com/address/0x2b08abfb5bd79c1f734b695ae9b29a7ec0a6f264#c
 
 ### Main_NFT:
 
-0xB99AE386ffd5A1d628d6A9c362ccf56378d279e8
+0x66e8cf86Ae35A96e4B67021689B4fCf47C3267c5
 
-https://testnet.bscscan.com/address/0xB99AE386ffd5A1d628d6A9c362ccf56378d279e8#code
+https://testnet.bscscan.com/address/0x66e8cf86Ae35A96e4B67021689B4fCf47C3267c5#code
 
 ### PublicDonation:
 

@@ -6,7 +6,7 @@ async function main() {
   const Name = "PublicDonation";
   const Contract = await hre.ethers.getContractFactory(Name);
 
-  const _mainNFTAddress = "0xB99AE386ffd5A1d628d6A9c362ccf56378d279e8";
+  const _mainNFTAddress = "0x66e8cf86Ae35A96e4B67021689B4fCf47C3267c5";
   const result = await Contract.deploy(_mainNFTAddress);
   await result.deployed();
 

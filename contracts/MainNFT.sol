@@ -127,7 +127,11 @@ contract MainNFT is ERC721Enumerable, IERC2981, Ownable, ReentrancyGuard {
         } catch (bytes memory) {
             return 0;
         }
-    } 
+    }
+
+    function getUniswapHelperAddress() public view returns (address) {
+        return address(uniswapHelper);
+    }
     /***************Common interfaces END***************/
 
     /***************Author options BGN***************/
