@@ -125,8 +125,9 @@ contract PublicDonation is  ReentrancyGuard {
         return mainNFT.ownerOf(author);
     }
 
-    function setIMainNFT(address mainNFTAddress) public onlyOwner{
-        mainNFT = IMainNFT(mainNFTAddress);
+    function setIMainNFT(address mainNFTAddress) external onlyOwner{
+        mainNFT = IMainNFT(mainNFTAddress);        
+        mainNFT.setVerfiedContracts(true, address(this));
     }
 
     function withdraw() external onlyOwner nonReentrant {

@@ -348,13 +348,9 @@ contract Subscriptions is ReentrancyGuard {
         TransferHelper.safeTransferETH(commissionCollector(), amount);
     }
 
-    function _withdrawTokens(address _address) internal {
+    function withdrawTokens(address _address) external onlyOwner nonReentrant {
         uint256 amount = IERC20(_address).balanceOf(address(this));
         TransferHelper.safeTransfer(_address, commissionCollector(), amount);
-    }
-
-    function withdrawTokens(address _address) public onlyOwner nonReentrant {
-        _withdrawTokens(_address);
     }
     /***************Support END**************/
 
