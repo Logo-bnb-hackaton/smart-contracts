@@ -23,6 +23,7 @@ contract MainNFT is ERC721Enumerable, IERC2981, Ownable, ReentrancyGuard {
     uint256 public totalAmountsInUSD;
     uint256 public totalRating;
     uint256 publicSaleTokenPrice = 0.1 ether;
+    uint256 baseRating = 10**20;
     string public baseURI;
     mapping (uint256 => uint256) public authorsAmountsInETH;
     mapping (uint256 => uint256) public authorsAmountsInUSD;
@@ -62,7 +63,8 @@ contract MainNFT is ERC721Enumerable, IERC2981, Ownable, ReentrancyGuard {
         setNewUniswapHelper(_uniswapHelperAddress);
         setNewPriceFeedChainlink(_priceFeedAddress);
         _safeMint(address(this), 0);
-        _addAuthorsRating(10**18, 0);
+        baseRating = block.timestamp.div(3_600).mul(baseRating);
+        authorsRating[0] += baseRating;
     }
 
     /***************Common interfaces BGN***************/
@@ -80,7 +82,8 @@ contract MainNFT is ERC721Enumerable, IERC2981, Ownable, ReentrancyGuard {
 
     function tokenURI(uint256 tokenId) public view virtual override returns (string memory) {
         _requireMinted(tokenId);
-        uint256 thisLevel = (10 ** levels) * authorsRating[tokenId] / totalRating;
+        uint256 _totalRating = totalRating  > baseRating ? totalRating : baseRating;
+        uint256 thisLevel = (10 ** levels) * authorsRating[tokenId] / _totalRating;
         uint256 uriNumber = myLog10(thisLevel);
         if (uriNumber >= levels || tokenId == 0){
             uriNumber = levels - 1;
@@ -170,7 +173,8 @@ contract MainNFT is ERC721Enumerable, IERC2981, Ownable, ReentrancyGuard {
     }
 
     function contractFeeForAuthor(uint256 author, uint256 amount) public view returns(uint256){
-        uint256 thisLevel = (10 ** levels) * authorsRating[author] / totalRating;
+        uint256 _totalRating = totalRating  > baseRating ? totalRating : baseRating;
+        uint256 thisLevel = (10 ** levels) * authorsRating[author] / _totalRating;
         uint256 contractFee = amount * 2 / ( 100 * (2 ** myLog10(thisLevel)));
         return contractFee > 0 ? contractFee : 1;
     }

@@ -37,7 +37,7 @@ npx hardhat compile
 ### For contracts
 
 ```
-npm install @openzeppelin/contracts@4..0
+npm install @openzeppelin/contracts@4.5.0
 ```
 
 ### For helpers
