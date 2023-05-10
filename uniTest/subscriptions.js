@@ -6,7 +6,7 @@ const {
   SUBSCRIPTIONS_ADDRESS,
   SUBSCRIPTIONS_ABI,
   ERC20_ABI,
-} = require("../constants/constants");
+} = require("../constants/constants_v2");
 const PRIVATE_KEY = process.env.PRIVATE_KEY;
 const BNBT_RPC_URL = process.env.BNBT_RPC_URL;
 
@@ -21,6 +21,7 @@ const mainContract = new ethers.Contract(
   MAIN_NFT_ABI,
   signer
 );
+
 const subscriptionsContract = new ethers.Contract(
   SUBSCRIPTIONS_ADDRESS,
   SUBSCRIPTIONS_ABI,
@@ -28,7 +29,7 @@ const subscriptionsContract = new ethers.Contract(
 );
 const WAIT_BLOCK_CONFIRMATIONS = 2;
 
-// Создать новую подписку в нативной монете блокчейна
+// Create new Subscription
 async function createNewSubscriptionByEth(
   hexName,
   author,
@@ -49,7 +50,7 @@ async function createNewSubscriptionByEth(
   await signer.provider.waitForTransaction(tx.hash, WAIT_BLOCK_CONFIRMATIONS);
 }
 
-// Создать новую подписку в токенах.
+// Create new Subscription by token
 async function createNewSubscriptionByToken(
   hexName,
   author,
@@ -72,12 +73,8 @@ async function createNewSubscriptionByToken(
   await signer.provider.waitForTransaction(tx.hash, WAIT_BLOCK_CONFIRMATIONS);
 }
 
-// Возвращает необходимую сумму оплаты подписки в указанных токенах
-async function getTotalPaymentAmountForPeriod(
-  author,
-  subscriptionId,
-  periods
-) {
+// Get total payment amount for period
+async function getTotalPaymentAmountForPeriod(author, subscriptionId, periods) {
   const amounts = await subscriptionsContract.getTotalPaymentAmountForPeriod(
     author,
     subscriptionId,
@@ -89,7 +86,7 @@ async function getTotalPaymentAmountForPeriod(
   };
 }
 
-// Получение токенов пользователя, возвращает количество токенов и их id
+// Getting user tokens, returns the number of tokens and their id
 async function subscriptionPayment(
   author,
   subscriptionId,
@@ -155,6 +152,100 @@ function generateNewHash(someString) {
   return hash;
 }
 
+async function _getBlockTimestamp(blockNumber) {
+  const block = await provider.getBlock(blockNumber);
+  return await _getTimestamp(block.timestamp * 1000);
+}
+
+async function _getTimestamp(timestamp) {
+  const date = new Date(timestamp);
+  const year = date.getFullYear();
+  const month = ("0" + (date.getMonth() + 1)).slice(-2);
+  const day = ("0" + date.getDate()).slice(-2);
+  const hours = ("0" + date.getHours()).slice(-2);
+  const minutes = ("0" + date.getMinutes()).slice(-2);
+  const formattedDate =
+    year + "-" + month + "-" + day + " " + hours + ":" + minutes;
+  return formattedDate;
+}
+
+async function callbackEvents() {
+  const blockNumber = await provider.getBlockNumber();
+
+  // Getting last 10 events NewSubscription from last 100000 blocks
+  subscriptionsContract
+    .queryFilter("NewSubscription", blockNumber - 100000, blockNumber)
+    .then((events) => {
+      console.log(`Found ${events.length} NewSubscription events:`);
+      events.slice(-10).forEach(async (event) => {
+        const blockNumber = event.blockNumber;
+        const blockTimestamp = await _getBlockTimestamp(blockNumber);
+        const hexId = event.args.hexId;
+        const participant = event.args.participant;
+        const author = event.args.author;
+        const subscriptionIndex = event.args.subscriptionIndex;
+        const subscriptionEndTime = event.args.subscriptionEndTime;
+        const tokenAddress = event.args.tokenAddress;
+        const amount = event.args.amount;
+
+        console.log(
+          `${blockTimestamp}, blockNumber: ${blockNumber}, hexId: ${hexId}, participant: ${participant}, author: ${author}, subscriptionEndTime: ${subscriptionEndTime}`
+        );
+      });
+    });
+
+  // Getting last 10 events NewOneTimeSubscriptionCreated from last 50000 blocks
+  subscriptionsContract
+    .queryFilter(
+      "NewOneTimeSubscriptionCreated",
+      blockNumber - 50000,
+      blockNumber
+    )
+    .then((events) => {
+      console.log(
+        `Found ${events.length} NewOneTimeSubscriptionCreated events:`
+      );
+      events.slice(-10).forEach(async (event) => {
+        const blockNumber = event.blockNumber;
+        const blockTimestamp = await _getBlockTimestamp(blockNumber);
+        const author = event.args.author;
+        const hexId = event.args.hexId;
+        const tokenAddress = event.args.tokenAddress;
+        const discounts = event.args.discounts;
+
+        console.log(
+          `${blockTimestamp}, blockNumber: ${blockNumber}, author: ${author}, hexId: ${hexId}, tokenAddress: ${tokenAddress}`
+        );
+      });
+    });
+
+  // Getting last 10 events NewRegularSubscriptionCreated from last 50000 blocks
+  subscriptionsContract
+    .queryFilter(
+      "NewRegularSubscriptionCreated",
+      blockNumber - 50000,
+      blockNumber
+    )
+    .then((events) => {
+      console.log(
+        `Found ${events.length} NewRegularSubscriptionCreated events:`
+      );
+      events.slice(-10).forEach(async (event) => {
+        const blockNumber = event.blockNumber;
+        const blockTimestamp = await _getBlockTimestamp(blockNumber);
+        const author = event.args.author;
+        const hexId = event.args.hexId;
+        const tokenAddress = event.args.tokenAddress;
+        const paymetnPeriod = event.args.paymetnPeriod;
+        const discounts = event.args.discounts;
+
+        console.log(
+          `${blockTimestamp}, blockNumber: ${blockNumber}, author: ${author}, hexId: ${hexId}, tokenAddress: ${tokenAddress}, paymetnPeriod: ${paymetnPeriod}`
+        );
+      });
+    });
+}
+
 async function main() {
   //   const timestamp = Date.now();
   //   const index = generateNewHash(timestamp.toString());
@@ -178,7 +269,7 @@ async function main() {
     },
   ];
 
-  /** Создание подписки в нативной монете
+  /**
   await createNewSubscriptionByEth(
     hexId,
     author,
@@ -189,7 +280,7 @@ async function main() {
   );
   */
 
-  /** Создание подписки в токене
+  /**
   await createNewSubscriptionByToken(
     hexId,
     author,
@@ -201,15 +292,17 @@ async function main() {
   );
    */
 
-  /** Оплата подписки в нативной монете
+  /**
   const subscriptionId = 0;
   await subscriptionPayment(author, subscriptionId, zeroAddr, 5);
   */
 
-  /** Оплата подписки в токене
+  /**
   const subscriptionId = 1;
   await subscriptionPayment(author, subscriptionId, tokenAddresses[0], 2);
   */
+
+  await callbackEvents();
 }
 
 main().catch((error) => {
