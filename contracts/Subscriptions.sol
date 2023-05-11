@@ -1,6 +1,7 @@
-// SPDX-License-Identifier: MIT                                                
-
+// SPDX-License-Identifier: GPL-2.0-or-later                                         
 pragma solidity ^0.8.0;
+
+import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
@@ -11,7 +12,11 @@ import "./Interfaces/IUniswapV3Helper.sol";
 contract Subscriptions is ReentrancyGuard {
     using SafeMath for uint256;
 
+    uint8 constant public decimalsForUSD = 4;
+    int256 public lastCoinPriceInUSD;
+
     IMainNFT mainNFT;
+    AggregatorV3Interface priceFeedChainlink;
 
     struct Discount{
         uint256 period;
@@ -48,6 +53,7 @@ contract Subscriptions is ReentrancyGuard {
     
     mapping(uint256 => mapping(uint256 => Payment[])) public paymentSubscriptionsByAuthor;
     mapping(uint256 => mapping(uint256 => uint256)) public totalPaymentSubscriptionsByAuthoInEth;
+    mapping(uint256 => mapping(uint256 => uint256)) public totalPaymentSubscriptionsByAuthoInUSD;
 
     event Received(address indexed sender, uint256 value);
     event NewOneTimeSubscriptionCreated(uint256 indexed author, bytes32 indexed hexId, address tokenAddress, uint256 price, Discount[] discounts);
@@ -75,6 +81,7 @@ contract Subscriptions is ReentrancyGuard {
     constructor(address _mainNFTAddress) {
         mainNFT = IMainNFT(_mainNFTAddress);
         mainNFT.setVerfiedContracts(true, address(this));
+        priceFeedChainlink = AggregatorV3Interface(mainNFT.getPriceFeedChainlinkAddress());
     }
 
     /***************Author options BGN***************/
@@ -269,6 +276,20 @@ contract Subscriptions is ReentrancyGuard {
         }
         paymentSubscriptionsByAuthor[author][subscriptionIndex].push(Payment(subscription.tokenAddress, amountInToken, amountInEth, block.timestamp));
         totalPaymentSubscriptionsByAuthoInEth[author][subscriptionIndex] += amountInEth;
+
+        (,int256 priceInUSD,,,) = priceFeedChainlink.latestRoundData();
+        if (lastCoinPriceInUSD != priceInUSD) {
+            lastCoinPriceInUSD = priceInUSD;
+        }
+        uint256 modPriceInUSD = uint256(lastCoinPriceInUSD >= 0 ? lastCoinPriceInUSD : -lastCoinPriceInUSD);
+        uint8 decimals = priceFeedChainlink.decimals();
+        uint256 amountInUSD = amountInEth.mul(modPriceInUSD).div(10**(18 - decimalsForUSD + decimals));
+        if (lastCoinPriceInUSD >= 0) {
+            totalPaymentSubscriptionsByAuthoInUSD[author][subscriptionIndex] += amountInUSD;
+        } else if (totalPaymentSubscriptionsByAuthoInUSD[author][subscriptionIndex] > amountInUSD) {
+            totalPaymentSubscriptionsByAuthoInUSD[author][subscriptionIndex] -= amountInUSD;
+        }        
+
         emit NewSubscription(subscription.hexId, msg.sender, author, subscriptionIndex, subscriptionEndTime, subscription.tokenAddress, amountInToken);
     }
 
@@ -341,6 +362,7 @@ contract Subscriptions is ReentrancyGuard {
     function setIMainNFT(address mainNFTAddress) external onlyOwner{
         mainNFT = IMainNFT(mainNFTAddress);
         mainNFT.setVerfiedContracts(true, address(this));
+        priceFeedChainlink = AggregatorV3Interface(mainNFT.getPriceFeedChainlinkAddress());
     }
 
     function withdraw() external onlyOwner nonReentrant {

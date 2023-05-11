@@ -1,6 +1,6 @@
-// SPDX-License-Identifier: MIT                                                
-
+// SPDX-License-Identifier: GPL-2.0-or-later                                          
 pragma solidity ^0.8.0;
+
 import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/interfaces/IERC2981.sol";
@@ -134,6 +134,10 @@ contract MainNFT is ERC721Enumerable, IERC2981, Ownable, ReentrancyGuard {
 
     function getUniswapHelperAddress() public view returns (address) {
         return address(uniswapHelper);
+    }
+
+    function getPriceFeedChainlinkAddress() public view returns (address) {
+        return address(priceFeedChainlink);
     }
     /***************Common interfaces END***************/
 
