@@ -1,6 +1,6 @@
-// SPDX-License-Identifier: GPL-2.0-or-later                                         
-pragma solidity ^0.8.0;
+// SPDX-License-Identifier: MIT                                                
 
+pragma solidity ^0.8.0;
 import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -19,7 +19,7 @@ contract Subscriptions is ReentrancyGuard {
     AggregatorV3Interface priceFeedChainlink;
 
     struct Discount{
-        uint256 period;
+        uint32 numberOfPeriods;
         uint16 amountAsPPM;
     }
 
@@ -206,24 +206,26 @@ contract Subscriptions is ReentrancyGuard {
     function getTotalPaymentAmountForPeriod( 
         uint256 author, 
         uint256 subscriptionIndex, 
-        uint256 periods) public view returns (uint256 amountInToken, uint256 amountInEth){
+        uint32 numberOfSubscriptionPeriods) public view returns (uint256 amountInToken, uint256 amountInEth){
         Subscription memory subscription = subscriptionsByAuthor[author][subscriptionIndex];
         Discount[] memory discount = discountSubscriptionsByAuthor[author][subscriptionIndex];
         uint256 maxDiscount = 0;
         if (subscription.isRegularSubscription){
             for (uint256 i = 0; i < discount.length; i++){
-                if (periods >= discount[i].period && maxDiscount < discount[i].amountAsPPM){
+                if (numberOfSubscriptionPeriods >= discount[i].numberOfPeriods && maxDiscount < discount[i].amountAsPPM){
                     maxDiscount = discount[i].amountAsPPM;
                 }
             }
+        } else {
+            numberOfSubscriptionPeriods = 1;
         }
-        amountInToken = subscription.price.mul(periods).mul(1000 - maxDiscount).div(1000);
+        amountInToken = subscription.price.mul(numberOfSubscriptionPeriods).mul(1000 - maxDiscount).div(1000);
         amountInEth = subscription.tokenAddress != address(0) ? amountInToken : mainNFT.converTokenPriceToEth(subscription.tokenAddress, amountInToken);
     }
 
-    function getSubscriptionPriceFromCustomToken(uint256 author, uint256 subscriptionIndex, uint256 periods, address customTokenAddress) public view returns(uint256) {
+    function getSubscriptionPriceFromCustomToken(uint256 author, uint256 subscriptionIndex, uint32 numberOfSubscriptionPeriods, address customTokenAddress) public view returns(uint256) {
         Subscription memory subscription = subscriptionsByAuthor[author][subscriptionIndex];
-        (uint256 amountInToken, uint256 amountInEth) = getTotalPaymentAmountForPeriod(author, subscriptionIndex, periods);
+        (uint256 amountInToken, uint256 amountInEth) = getTotalPaymentAmountForPeriod(author, subscriptionIndex, numberOfSubscriptionPeriods);
         if (customTokenAddress == subscription.tokenAddress) {
             return amountInToken;
         }
@@ -240,15 +242,15 @@ contract Subscriptions is ReentrancyGuard {
     /***************Author options END***************/
 
     /***************User interfaces BGN***************/
-    function subscriptionPayment(uint256 author, uint256 subscriptionIndex, address participantSelectedTokenAddress, uint256 periods) public payable{
+    function subscriptionPayment(uint256 author, uint256 subscriptionIndex, address participantSelectedTokenAddress, uint32 numberOfSubscriptionPeriods) public payable{
         require(!blackListByAuthor[author][msg.sender], "You blacklisted");
-        require(periods > 0, "Periods must be greater than zero");
         Subscription memory subscription = subscriptionsByAuthor[author][subscriptionIndex];
+        require(subscription.isRegularSubscription && numberOfSubscriptionPeriods > 0, "Periods must be greater than zero");
         require(subscription.isActive, "Subscription is not active");
         require(mainNFT.converTokenPriceToEth(participantSelectedTokenAddress, 10**24) > 0, "The token is not suitable for payment");
         uint256 thisParticipantIndex = participantIndex[author][subscriptionIndex][msg.sender];
         require(thisParticipantIndex == 0 || subscription.isRegularSubscription, "You already have access to a subscription");
-        (uint256 amountInToken, uint256 amountInEth) = getTotalPaymentAmountForPeriod(author, subscriptionIndex, periods);
+        (uint256 amountInToken, uint256 amountInEth) = getTotalPaymentAmountForPeriod(author, subscriptionIndex, numberOfSubscriptionPeriods);
         if (subscription.tokenAddress == address(0) && participantSelectedTokenAddress == address(0)){
             require(msg.value >= amountInToken, "Payment value does not match the price");
             _paymentEth(author, amountInToken);
@@ -264,10 +266,10 @@ contract Subscriptions is ReentrancyGuard {
         }
 
         uint256 subscriptionEndTime = subscription.isRegularSubscription ?
-            (block.timestamp).add(subscription.paymetnPeriod.mul(periods)) : type(uint256).max;
+            (block.timestamp).add(subscription.paymetnPeriod.mul(numberOfSubscriptionPeriods)) : type(uint256).max;
         if (thisParticipantIndex != 0){
             subscriptionEndTime = (participantsSubscriptionsByAuthor[author][subscriptionIndex][thisParticipantIndex].subscriptionEndTime)
-                .add(subscription.paymetnPeriod.mul(periods));
+                .add(subscription.paymetnPeriod.mul(numberOfSubscriptionPeriods));
             participantsSubscriptionsByAuthor[author][subscriptionIndex][thisParticipantIndex].subscriptionEndTime = subscriptionEndTime;
         } else {
             Participant[] storage participants = participantsSubscriptionsByAuthor[author][subscriptionIndex];
