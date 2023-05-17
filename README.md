@@ -108,6 +108,13 @@ https://testnet.bscscan.com/address/0x2b08abfb5bd79c1f734b695ae9b29a7ec0a6f264#c
 
 https://testnet.bscscan.com/address/0x66e8cf86Ae35A96e4B67021689B4fCf47C3267c5#code
 
+
+### NoddeDynamicNFT:
+
+0x925c493975aE018bCf77dDc25290869a56671dBf
+
+https://testnet.bscscan.com/address/0x925c493975aE018bCf77dDc25290869a56671dBf#code
+
 ### PublicDonation:
 
 0x1F143C116A4B4E4AC650BE248BE8F4d1C935Ed3C

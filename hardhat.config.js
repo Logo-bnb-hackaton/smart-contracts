@@ -35,15 +35,6 @@ module.exports = {
   coverage: {
     exclude: ["test/", "node_modules/"],
   },
-  // solidity: {
-  //   version: "0.8.18",
-  //   settings: {
-  //     optimizer: {
-  //       enabled: true,
-  //       runs: 200,
-  //     },
-  //   },
-  // },
   solidity: {
     compilers: [
       {
@@ -53,6 +44,7 @@ module.exports = {
             enabled: true,
             runs: 200,
           },
+          viaIR: true
         },
       },
       {
